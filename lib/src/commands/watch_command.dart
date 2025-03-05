@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
+import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
 /// {@template watch_command}
@@ -50,6 +52,14 @@ class WatchCommand extends Command<int> {
       stdin.lineMode = false;
       stdin.echoMode = false;
 
+      HeapSnapshotGraph? graph;
+      final chunks = <ByteData>[];
+
+      final stream = vmService.onHeapSnapshotEvent.listen((event) {
+        _logger.info('Heap Snapshot Event: ${event.data}');
+        chunks.add(event.data!);
+      });
+
       await for (final codePoints in stdin) {
         for (final codePoint in codePoints) {
           if (codePoint == 32) {
@@ -59,9 +69,20 @@ class WatchCommand extends Command<int> {
                 '\nHeap Usage: ${memoryUsage.heapUsage} bytes '
                 '\nHeap Capacity: ${memoryUsage.heapCapacity} bytes'
                 '\nExternal Usage: ${memoryUsage.externalUsage} bytes');
+
+            await vmService.requestHeapSnapshot(mainIsolate.id!);
+
+            if (chunks.isNotEmpty) {
+              graph = HeapSnapshotGraph.fromChunks(chunks);
+              _logger.info('Heap Snapshot: '
+                  '\n Objects: ${graph.objects.map((e) => e.data)}');
+            } else {
+              _logger.info('Heap Snapshot requested. Waiting for data...');
+            }
           } else if (codePoint == 113) {
             // 113 is the ASCII code for 'q'
             _logger.info('Exiting...');
+            await stream.cancel();
             exit(0);
           }
         }
@@ -69,8 +90,8 @@ class WatchCommand extends Command<int> {
     } on Exception catch (e) {
       _logger.err('Watch failed: $e');
     } finally {
-      stdin.lineMode = true;
-      stdin.echoMode = true;
+      // stdin.lineMode = true;
+      // stdin.echoMode = true;
     }
 
     return ExitCode.success.code;
