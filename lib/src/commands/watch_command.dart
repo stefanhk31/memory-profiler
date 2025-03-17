@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -16,7 +15,9 @@ class WatchCommand extends Command<int> {
   WatchCommand({
     required Logger logger,
   }) : _logger = logger {
-    argParser.addOption('uri');
+    argParser
+      ..addOption('uri')
+      ..addOption('library');
   }
 
   @override
@@ -32,6 +33,7 @@ class WatchCommand extends Command<int> {
   Future<int> run() async {
     try {
       final appUri = argResults?['uri'] as String;
+      final library = argResults?['library'] as String;
       final uri = Uri.parse(appUri);
       final wsUri = uri.replace(scheme: 'ws');
       final vmService = await vmServiceConnectUri(wsUri.toString());
@@ -52,14 +54,6 @@ class WatchCommand extends Command<int> {
       stdin.lineMode = false;
       stdin.echoMode = false;
 
-      HeapSnapshotGraph? graph;
-      final chunks = <ByteData>[];
-
-      final stream = vmService.onHeapSnapshotEvent.listen((event) {
-        _logger.info('Heap Snapshot Event: ${event.data}');
-        chunks.add(event.data!);
-      });
-
       await for (final codePoints in stdin) {
         for (final codePoint in codePoints) {
           if (codePoint == 32) {
@@ -70,19 +64,24 @@ class WatchCommand extends Command<int> {
                 '\nHeap Capacity: ${memoryUsage.heapCapacity} bytes'
                 '\nExternal Usage: ${memoryUsage.externalUsage} bytes');
 
-            await vmService.requestHeapSnapshot(mainIsolate.id!);
+            final snapshot =
+                await HeapSnapshotGraph.getSnapshot(vmService, mainIsolate);
 
-            if (chunks.isNotEmpty) {
-              graph = HeapSnapshotGraph.fromChunks(chunks);
-              _logger.info('Heap Snapshot: '
-                  '\n Objects: ${graph.objects.map((e) => e.data)}');
-            } else {
-              _logger.info('Heap Snapshot requested. Waiting for data...');
+            final chunks = snapshot.toChunks();
+            final graph = HeapSnapshotGraph.fromChunks(chunks);
+
+            final classes = graph.classes.where(
+              (element) => element.libraryUri.path.contains(library),
+            );
+
+            for (final heapClass in classes) {
+              _logger.info('Heap Snapshot Class: ${heapClass.name} '
+                  '\n Fields: '
+                  '\n ${heapClass.fields.map((f) => f.name)}');
             }
           } else if (codePoint == 113) {
             // 113 is the ASCII code for 'q'
             _logger.info('Exiting...');
-            await stream.cancel();
             exit(0);
           }
         }
@@ -90,8 +89,8 @@ class WatchCommand extends Command<int> {
     } on Exception catch (e) {
       _logger.err('Watch failed: $e');
     } finally {
-      // stdin.lineMode = true;
-      // stdin.echoMode = true;
+      stdin.lineMode = true;
+      stdin.echoMode = true;
     }
 
     return ExitCode.success.code;
