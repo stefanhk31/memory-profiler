@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
+import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
 /// {@template watch_command}
@@ -14,7 +15,9 @@ class WatchCommand extends Command<int> {
   WatchCommand({
     required Logger logger,
   }) : _logger = logger {
-    argParser.addOption('uri');
+    argParser
+      ..addOption('uri')
+      ..addOption('library');
   }
 
   @override
@@ -30,6 +33,7 @@ class WatchCommand extends Command<int> {
   Future<int> run() async {
     try {
       final appUri = argResults?['uri'] as String;
+      final library = argResults?['library'] as String;
       final uri = Uri.parse(appUri);
       final wsUri = uri.replace(scheme: 'ws');
       final vmService = await vmServiceConnectUri(wsUri.toString());
@@ -59,6 +63,21 @@ class WatchCommand extends Command<int> {
                 '\nHeap Usage: ${memoryUsage.heapUsage} bytes '
                 '\nHeap Capacity: ${memoryUsage.heapCapacity} bytes'
                 '\nExternal Usage: ${memoryUsage.externalUsage} bytes');
+
+            final allocationProfile =
+                await vmService.getAllocationProfile(mainIsolate.id!);
+
+            final members = allocationProfile.members ?? <ClassHeapStats>[];
+
+            final libMembers = members.where(
+              (m) => m.classRef?.library?.uri?.contains(library) ?? false,
+            );
+
+            for (final member in libMembers) {
+              _logger.info('Class Heap Stats: '
+                  '\n Class: ${member.classRef?.name}'
+                  '\n Current Bytes: ${member.bytesCurrent}');
+            }
           } else if (codePoint == 113) {
             // 113 is the ASCII code for 'q'
             _logger.info('Exiting...');
