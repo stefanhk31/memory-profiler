@@ -64,20 +64,19 @@ class WatchCommand extends Command<int> {
                 '\nHeap Capacity: ${memoryUsage.heapCapacity} bytes'
                 '\nExternal Usage: ${memoryUsage.externalUsage} bytes');
 
-            final snapshot =
-                await HeapSnapshotGraph.getSnapshot(vmService, mainIsolate);
+            final allocationProfile =
+                await vmService.getAllocationProfile(mainIsolate.id!);
 
-            final chunks = snapshot.toChunks();
-            final graph = HeapSnapshotGraph.fromChunks(chunks);
+            final members = allocationProfile.members ?? <ClassHeapStats>[];
 
-            final classes = graph.classes.where(
-              (element) => element.libraryUri.path.contains(library),
+            final libMembers = members.where(
+              (m) => m.classRef?.library?.uri?.contains(library) ?? false,
             );
 
-            for (final heapClass in classes) {
-              _logger.info('Heap Snapshot Class: ${heapClass.name} '
-                  '\n Fields: '
-                  '\n ${heapClass.fields.map((f) => f.name)}');
+            for (final member in libMembers) {
+              _logger.info('Class Heap Stats: '
+                  '\n Class: ${member.classRef?.name}'
+                  '\n Current Bytes: ${member.bytesCurrent}');
             }
           } else if (codePoint == 113) {
             // 113 is the ASCII code for 'q'
