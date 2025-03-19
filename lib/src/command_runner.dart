@@ -5,6 +5,8 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/commands/commands.dart';
 import 'package:memory_profiler/src/version.dart';
 import 'package:pub_updater/pub_updater.dart';
+import 'package:vm_service/vm_service.dart';
+import 'package:vm_service/vm_service_io.dart';
 
 const executableName = 'memory_profiler';
 const packageName = 'memory_profiler';
@@ -39,7 +41,12 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
       );
 
     // Add sub commands
-    addCommand(WatchCommand(logger: _logger));
+    addCommand(
+      WatchCommand(
+        logger: _logger,
+        vmServiceProvider: (uri) async => vmServiceConnectUri(uri),
+      ),
+    );
   }
 
   @override

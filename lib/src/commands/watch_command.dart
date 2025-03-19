@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:vm_service/vm_service.dart';
-import 'package:vm_service/vm_service_io.dart';
+
+/// Type to simplify providing VM service to the `WatchCommand`.
+typedef VmServiceProvider = Future<VmService> Function(String);
 
 /// {@template watch_command}
 ///
@@ -14,7 +16,9 @@ class WatchCommand extends Command<int> {
   /// {@macro watch_command}
   WatchCommand({
     required Logger logger,
-  }) : _logger = logger {
+    required VmServiceProvider vmServiceProvider,
+  })  : _logger = logger,
+        _vmServiceProvider = vmServiceProvider {
     argParser
       ..addOption('uri')
       ..addOption('library');
@@ -28,6 +32,7 @@ class WatchCommand extends Command<int> {
   String get name => 'watch';
 
   final Logger _logger;
+  final VmServiceProvider _vmServiceProvider;
 
   @override
   Future<int> run() async {
@@ -36,7 +41,8 @@ class WatchCommand extends Command<int> {
       final library = argResults?['library'] as String;
       final uri = Uri.parse(appUri);
       final wsUri = uri.replace(scheme: 'ws');
-      final vmService = await vmServiceConnectUri(wsUri.toString());
+
+      final vmService = await _vmServiceProvider(wsUri.toString());
 
       final vm = await vmService.getVM();
       final isolates = vm.isolates!;
