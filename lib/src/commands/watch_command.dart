@@ -58,26 +58,37 @@ class WatchCommand extends Command<int> {
         for (final codePoint in codePoints) {
           if (codePoint == 32) {
             // 32 is the ASCII code for spacebar
+            _logger.info('Retrieving current memory stats...');
+            final sb = StringBuffer();
             final memoryUsage = await vmService.getMemoryUsage(mainIsolate.id!);
-            _logger.info('\nMemory Usage: '
+            sb.write('\nMemory Usage: '
                 '\nHeap Usage: ${memoryUsage.heapUsage} bytes '
                 '\nHeap Capacity: ${memoryUsage.heapCapacity} bytes'
-                '\nExternal Usage: ${memoryUsage.externalUsage} bytes');
+                '\nExternal Usage: ${memoryUsage.externalUsage} bytes '
+                '\nDetails: ');
 
             final allocationProfile =
                 await vmService.getAllocationProfile(mainIsolate.id!);
 
             final members = allocationProfile.members ?? <ClassHeapStats>[];
 
-            final libMembers = members.where(
-              (m) => m.classRef?.library?.uri?.contains(library) ?? false,
-            );
+            final libMembers = members
+                .where(
+                  (m) =>
+                      (m.classRef?.library?.uri?.contains(library) ?? false) &&
+                      (m.bytesCurrent != null && m.bytesCurrent! > 0),
+                )
+                .toList()
+              ..sort(
+                (a, b) => (a.bytesCurrent ?? 0).compareTo(b.bytesCurrent ?? 0),
+              );
 
             for (final member in libMembers) {
-              _logger.info('Class Heap Stats: '
-                  '\n Class: ${member.classRef?.name}'
-                  '\n Current Bytes: ${member.bytesCurrent}');
+              sb.write('\n Class: ${member.classRef?.name} '
+                  '\nCurrent Bytes: ${member.bytesCurrent}');
             }
+
+            _logger.info(sb.toString());
           } else if (codePoint == 113) {
             // 113 is the ASCII code for 'q'
             _logger.info('Exiting...');
