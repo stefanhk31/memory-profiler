@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:cli_completion/cli_completion.dart';
@@ -6,6 +8,7 @@ import 'package:memory_profiler/src/commands/commands.dart';
 import 'package:memory_profiler/src/version.dart';
 import 'package:memory_repository/memory_repository.dart';
 import 'package:pub_updater/pub_updater.dart';
+import 'package:vm_service/vm_service_io.dart';
 
 const executableName = 'memory_profiler';
 const packageName = 'memory_profiler';
@@ -21,12 +24,17 @@ const description = 'A Very Good Project created by Very Good CLI.';
 class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
   /// {@macro memory_profiler_command_runner}
   MemoryProfilerCommandRunner({
-    required VmServiceProvider vmServiceProvider,
     Logger? logger,
+    MemoryRepository? memoryRepository,
     PubUpdater? pubUpdater,
-  })  : _vmServiceProvider = vmServiceProvider,
-        _logger = logger ?? Logger(),
+    Stdin? stdInput,
+  })  : _logger = logger ?? Logger(),
+        _memoryRepository = memoryRepository ??
+            MemoryRepository(
+              vmServiceProvider: (uri) async => vmServiceConnectUri(uri),
+            ),
         _pubUpdater = pubUpdater ?? PubUpdater(),
+        _stdin = stdInput ?? stdin,
         super(executableName, description) {
     // Add root options and flags
     argParser
@@ -51,9 +59,8 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
     addCommand(
       WatchCommand(
         logger: _logger,
-        memoryRepository: MemoryRepository(
-          vmServiceProvider: _vmServiceProvider,
-        ),
+        memoryRepository: _memoryRepository,
+        stdInput: _stdin,
       ),
     );
   }
@@ -63,7 +70,8 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
 
   final Logger _logger;
   final PubUpdater _pubUpdater;
-  final VmServiceProvider _vmServiceProvider;
+  final MemoryRepository _memoryRepository;
+  final Stdin _stdin;
 
   @override
   Future<int> run(Iterable<String> args) async {

@@ -14,8 +14,10 @@ class WatchCommand extends Command<int> {
   WatchCommand({
     required Logger logger,
     required MemoryRepository memoryRepository,
+    Stdin? stdInput,
   })  : _logger = logger,
-        _memoryRepository = memoryRepository {
+        _memoryRepository = memoryRepository,
+        _stdin = stdInput ?? stdin {
     argParser
       ..addOption('uri')
       ..addOption('library');
@@ -30,6 +32,7 @@ class WatchCommand extends Command<int> {
 
   final Logger _logger;
   final MemoryRepository _memoryRepository;
+  final Stdin _stdin;
 
   @override
   Future<int> run() async {
@@ -46,8 +49,9 @@ class WatchCommand extends Command<int> {
       _logger.info('Connected to VM at $appUri. Press spacebar to get memory '
           'usage, or "q" to quit.');
 
-      stdin.lineMode = false;
-      stdin.echoMode = false;
+      _stdin
+        ..lineMode = false
+        ..echoMode = false;
 
       await for (final codePoints in stdin) {
         for (final codePoint in codePoints) {
@@ -67,8 +71,9 @@ class WatchCommand extends Command<int> {
     } on Exception catch (e) {
       _logger.err('Watch failed: $e');
     } finally {
-      stdin.lineMode = true;
-      stdin.echoMode = true;
+      _stdin
+        ..lineMode = true
+        ..echoMode = true;
     }
 
     return ExitCode.success.code;

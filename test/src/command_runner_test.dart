@@ -5,6 +5,7 @@ import 'package:cli_completion/cli_completion.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/command_runner.dart';
 import 'package:memory_profiler/src/version.dart';
+import 'package:memory_repository/memory_repository.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pub_updater/pub_updater.dart';
 import 'package:test/test.dart';
@@ -16,7 +17,9 @@ class _MockProgress extends Mock implements Progress {}
 
 class _MockPubUpdater extends Mock implements PubUpdater {}
 
-class _MockVmService extends Mock implements VmService {}
+class _MockMemoryRepository extends Mock implements MemoryRepository {}
+
+class _MockStdIn extends Mock implements Stdin {}
 
 const latestVersion = '0.0.0';
 
@@ -27,23 +30,28 @@ Run ${lightCyan.wrap('$executableName update')} to update''';
 void main() {
   group('MemoryProfilerCommandRunner', () {
     late PubUpdater pubUpdater;
-    late VmService vmService;
+    late MemoryRepository memoryRepository;
+    late Stdin stdInput;
     late Logger logger;
     late MemoryProfilerCommandRunner commandRunner;
 
     setUp(() {
       pubUpdater = _MockPubUpdater();
-      vmService = _MockVmService();
+      memoryRepository = _MockMemoryRepository();
+      stdInput = _MockStdIn();
+      when(() => stdInput.lineMode).thenReturn(true);
       when(
         () => pubUpdater.getLatestVersion(any()),
       ).thenAnswer((_) async => packageVersion);
+      when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
 
       logger = _MockLogger();
 
       commandRunner = MemoryProfilerCommandRunner(
         logger: logger,
         pubUpdater: pubUpdater,
-        vmServiceProvider: (_) async => vmService,
+        memoryRepository: memoryRepository,
+        stdInput: stdInput,
       );
     });
 
@@ -105,9 +113,7 @@ void main() {
 
     test('can be instantiated without an explicit analytics/logger instance',
         () {
-      final commandRunner = MemoryProfilerCommandRunner(
-        vmServiceProvider: (_) async => vmService,
-      );
+      final commandRunner = MemoryProfilerCommandRunner();
       expect(commandRunner, isNotNull);
       expect(commandRunner, isA<CompletionCommandRunner<int>>());
     });
@@ -161,22 +167,22 @@ void main() {
         verifyNever(() => logger.detail('    Command options:'));
       });
 
-      // test('enables verbose logging for sub commands', () async {
-      //   const uri = 'hello';
-      //   final result = await commandRunner.run([
-      //     '--verbose',
-      //     'uri',
-      //     '--$uri',
-      //   ]);
-      //   expect(result, equals(ExitCode.success.code));
+      test('enables verbose logging for sub commands', () async {
+        when(() => memoryRepository.getMainIsolateId())
+            .thenAnswer((_) async => 'isolateId');
+        final result = await commandRunner.run([
+          '--verbose',
+          'watch',
+          '--uri=http://uri.com',
+          '--library=path',
+        ]);
+        expect(result, equals(ExitCode.success.code));
 
-      //   verify(() => logger.detail('Argument information:')).called(1);
-      //   verify(() => logger.detail('  Top level options:')).called(1);
-      //   verify(() => logger.detail('  - verbose: true')).called(1);
-      //   verify(() => logger.detail('  Command: watch')).called(1);
-      //   verify(() => logger.detail('    Command options:')).called(1);
-      //   verify(() => logger.detail('    - uri: $uri')).called(1);
-      // });
+        verify(() => logger.detail('Argument information:')).called(1);
+        verify(() => logger.detail('  Top level options:')).called(1);
+        verify(() => logger.detail('  - verbose: true')).called(1);
+        verify(() => logger.detail('  Command: watch')).called(1);
+      });
     });
   });
 }

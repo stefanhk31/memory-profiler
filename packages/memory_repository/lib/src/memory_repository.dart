@@ -1,5 +1,6 @@
 import 'package:memory_repository/src/exceptions/vm_service_not_initialized_exception.dart';
 import 'package:vm_service/vm_service.dart';
+import 'package:vm_service/vm_service_io.dart';
 
 /// Type to simplify injecting VM service.
 typedef VmServiceProvider = Future<VmService> Function(String);

@@ -33,7 +33,6 @@ void main() {
       vmService = _MockVmService();
       logger = _MockLogger();
       commandRunner = MemoryProfilerCommandRunner(
-        vmServiceProvider: (_) async => vmService,
         logger: logger,
         pubUpdater: pubUpdater,
       );
