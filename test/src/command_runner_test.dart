@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -9,7 +10,6 @@ import 'package:memory_repository/memory_repository.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pub_updater/pub_updater.dart';
 import 'package:test/test.dart';
-import 'package:vm_service/vm_service.dart';
 
 class _MockLogger extends Mock implements Logger {}
 
@@ -31,18 +31,18 @@ void main() {
   group('MemoryProfilerCommandRunner', () {
     late PubUpdater pubUpdater;
     late MemoryRepository memoryRepository;
-    late Stdin stdInput;
+    late Stdin mockStdIn;
     late Logger logger;
     late MemoryProfilerCommandRunner commandRunner;
 
     setUp(() {
       pubUpdater = _MockPubUpdater();
       memoryRepository = _MockMemoryRepository();
-      stdInput = _MockStdIn();
-      when(() => stdInput.lineMode).thenReturn(true);
+      mockStdIn = _MockStdIn();
       when(
         () => pubUpdater.getLatestVersion(any()),
       ).thenAnswer((_) async => packageVersion);
+
       when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
 
       logger = _MockLogger();
@@ -51,7 +51,7 @@ void main() {
         logger: logger,
         pubUpdater: pubUpdater,
         memoryRepository: memoryRepository,
-        stdInput: stdInput,
+        stdInput: mockStdIn,
       );
     });
 
@@ -170,18 +170,43 @@ void main() {
       test('enables verbose logging for sub commands', () async {
         when(() => memoryRepository.getMainIsolateId())
             .thenAnswer((_) async => 'isolateId');
-        final result = await commandRunner.run([
+
+        when(() => mockStdIn.hasTerminal).thenReturn(true);
+        when(() => mockStdIn.echoMode).thenReturn(false);
+        when(() => mockStdIn.lineMode).thenReturn(false);
+        final stdInController = StreamController<List<int>>();
+        final stdInSub = stdInController.stream.listen((_) {});
+
+        addTearDown(() async {
+          await stdInController.close();
+          await stdInSub.cancel();
+        });
+
+        when(
+          () => mockStdIn.listen(
+            any(),
+            onError: any(named: 'onError'),
+            onDone: any(named: 'onDone'),
+            cancelOnError: any(named: 'cancelOnError'),
+          ),
+        ).thenAnswer((_) => stdInSub);
+
+        commandRunner.run([
           '--verbose',
           'watch',
           '--uri=http://uri.com',
           '--library=path',
-        ]);
-        expect(result, equals(ExitCode.success.code));
+        ]).ignore();
+
+        stdInController.add([113, 10]);
+        await Future<void>.delayed(Duration.zero);
 
         verify(() => logger.detail('Argument information:')).called(1);
         verify(() => logger.detail('  Top level options:')).called(1);
         verify(() => logger.detail('  - verbose: true')).called(1);
         verify(() => logger.detail('  Command: watch')).called(1);
+
+        await stdInSub.cancel();
       });
     });
   });

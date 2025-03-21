@@ -8,7 +8,6 @@ import 'package:memory_profiler/src/commands/commands.dart';
 import 'package:memory_profiler/src/version.dart';
 import 'package:memory_repository/memory_repository.dart';
 import 'package:pub_updater/pub_updater.dart';
-import 'package:vm_service/vm_service_io.dart';
 
 const executableName = 'memory_profiler';
 const packageName = 'memory_profiler';
@@ -29,10 +28,7 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
     PubUpdater? pubUpdater,
     Stdin? stdInput,
   })  : _logger = logger ?? Logger(),
-        _memoryRepository = memoryRepository ??
-            MemoryRepository(
-              vmServiceProvider: (uri) async => vmServiceConnectUri(uri),
-            ),
+        _memoryRepository = memoryRepository ?? MemoryRepository(),
         _pubUpdater = pubUpdater ?? PubUpdater(),
         _stdin = stdInput ?? stdin,
         super(executableName, description) {
