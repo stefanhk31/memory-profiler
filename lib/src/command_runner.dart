@@ -6,7 +6,6 @@ import 'package:memory_profiler/src/commands/commands.dart';
 import 'package:memory_profiler/src/version.dart';
 import 'package:memory_repository/memory_repository.dart';
 import 'package:pub_updater/pub_updater.dart';
-import 'package:vm_service/vm_service_io.dart';
 
 const executableName = 'memory_profiler';
 const packageName = 'memory_profiler';
@@ -22,9 +21,11 @@ const description = 'A Very Good Project created by Very Good CLI.';
 class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
   /// {@macro memory_profiler_command_runner}
   MemoryProfilerCommandRunner({
+    required VmServiceProvider vmServiceProvider,
     Logger? logger,
     PubUpdater? pubUpdater,
-  })  : _logger = logger ?? Logger(),
+  })  : _vmServiceProvider = vmServiceProvider,
+        _logger = logger ?? Logger(),
         _pubUpdater = pubUpdater ?? PubUpdater(),
         super(executableName, description) {
     // Add root options and flags
@@ -42,10 +43,16 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
 
     // Add sub commands
     addCommand(
+      UpdateCommand(
+        logger: _logger,
+        pubUpdater: _pubUpdater,
+      ),
+    );
+    addCommand(
       WatchCommand(
         logger: _logger,
         memoryRepository: MemoryRepository(
-          vmServiceProvider: (uri) async => vmServiceConnectUri(uri),
+          vmServiceProvider: _vmServiceProvider,
         ),
       ),
     );
@@ -56,6 +63,7 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
 
   final Logger _logger;
   final PubUpdater _pubUpdater;
+  final VmServiceProvider _vmServiceProvider;
 
   @override
   Future<int> run(Iterable<String> args) async {

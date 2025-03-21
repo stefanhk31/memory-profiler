@@ -3,10 +3,6 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_repository/memory_repository.dart';
-import 'package:vm_service/vm_service.dart';
-
-/// Type to simplify providing VM service to the `WatchCommand`.
-typedef VmServiceProvider = Future<VmService> Function(String);
 
 /// {@template watch_command}
 ///

@@ -7,6 +7,7 @@ import 'package:memory_profiler/src/version.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pub_updater/pub_updater.dart';
 import 'package:test/test.dart';
+import 'package:vm_service/vm_service.dart';
 
 class _MockLogger extends Mock implements Logger {}
 
@@ -14,11 +15,14 @@ class _MockProgress extends Mock implements Progress {}
 
 class _MockPubUpdater extends Mock implements PubUpdater {}
 
+class _MockVmService extends Mock implements VmService {}
+
 void main() {
   const latestVersion = '0.0.0';
 
   group('update', () {
     late PubUpdater pubUpdater;
+    late VmService vmService;
     late Logger logger;
     late MemoryProfilerCommandRunner commandRunner;
 
@@ -26,8 +30,10 @@ void main() {
       final progress = _MockProgress();
       final progressLogs = <String>[];
       pubUpdater = _MockPubUpdater();
+      vmService = _MockVmService();
       logger = _MockLogger();
       commandRunner = MemoryProfilerCommandRunner(
+        vmServiceProvider: (_) async => vmService,
         logger: logger,
         pubUpdater: pubUpdater,
       );
