@@ -6,8 +6,8 @@ import 'package:memory_repository/memory_repository.dart';
 
 /// {@template watch_command}
 ///
-/// `memory_profiler watch --uri`
-/// A [Command] to watch a currently running Flutter app
+/// `memory_profiler watch --uri=<uri> --library=<library>`
+/// A [Command] to watch a currently running Flutter app.
 /// {@endtemplate}
 class WatchCommand extends Command<int> {
   /// {@macro watch_command}
