@@ -90,7 +90,8 @@ void main() {
         },
       );
 
-      test('returns memory data for classes in given library path', () async {
+      test('returns sorted memory data for classes in given library path',
+          () async {
         when(() => vmService.getAllocationProfile(isolateId)).thenAnswer(
           (_) async => _TestData.allocationProfile,
         );
@@ -116,6 +117,16 @@ void main() {
         );
         expect(
           result,
+          contains(_TestData.secondClassInPath.classRef?.name),
+        );
+        expect(
+          result.indexOf(
+            _TestData.secondClassInPath.classRef!.name!,
+          ),
+          lessThan(result.indexOf(_TestData.classInPath.classRef!.name!)),
+        );
+        expect(
+          result,
           isNot(
             contains(_TestData.classNotInPath.classRef?.name),
           ),
@@ -133,6 +144,15 @@ abstract class _TestData {
       library: LibraryRef(id: 'libraryId', uri: 'path'),
     ),
     bytesCurrent: 100,
+  );
+
+  static final secondClassInPath = ClassHeapStats(
+    classRef: ClassRef(
+      id: 'classId',
+      name: 'secondClassInPath',
+      library: LibraryRef(id: 'libraryId', uri: 'path'),
+    ),
+    bytesCurrent: 50,
   );
 
   static final classNotInPath = ClassHeapStats(
@@ -153,6 +173,7 @@ abstract class _TestData {
   static final allocationProfile = AllocationProfile(
     members: [
       classInPath,
+      secondClassInPath,
       classNotInPath,
     ],
     memoryUsage: memoryUsage,
