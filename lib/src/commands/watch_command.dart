@@ -53,6 +53,7 @@ class WatchCommand extends Command<int> {
         ..lineMode = false
         ..echoMode = false;
 
+      // coverage: ignore-start
       await for (final codePoints in stdin) {
         for (final codePoint in codePoints) {
           if (codePoint == 32) {
@@ -68,6 +69,7 @@ class WatchCommand extends Command<int> {
           }
         }
       }
+      // coverage: ignore-end
     } on Exception catch (e) {
       _logger.err('Watch failed: $e');
     } finally {

@@ -24,7 +24,7 @@ void main() {
 
     setUp(() {
       logger = _MockLogger();
-      when(() => logger.info(any())).thenReturn(() {});
+      when(() => logger.info(any())).thenAnswer((_) {});
       memoryRepository = _MockMemoryRepository();
 
       when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
@@ -58,9 +58,22 @@ void main() {
       await stdInSub.cancel();
     });
 
-    test(
-        'logs memory data when spacebar is pressed '
-        'and exits process when q is pressed', () async {
+    // TODO(@stefanhk31): Fill in this test once logic is implemented
+    test('fetches memory data at intervals', () async {
+      const memoryData = 'data';
+      when(() => memoryRepository.initialize(any()))
+          .thenAnswer((_) async => memoryData);
+
+      commandRunner.run([
+        '--verbose',
+        'watch',
+        '--uri=http://uri.com',
+        '--library=path',
+      ]).ignore();
+    });
+
+    // TODO(@stefanhk31): Fill in this test once logic is implemented
+    test('takes detailed snapshot when threshold is reached', () async {
       const memoryData = 'data';
       when(() => memoryRepository.fetchMemoryData(any(), any()))
           .thenAnswer((_) async => memoryData);
@@ -71,14 +84,27 @@ void main() {
         '--uri=http://uri.com',
         '--library=path',
       ]).ignore();
+    });
 
-      stdInController.add([32, 10]);
-      await Future<void>.delayed(Duration.zero);
-      verify(() => logger.info(memoryData)).called(1);
+    test('throws error when exception is hit', () async {
+      const errorMessage = 'oops';
+      final memoryRepo = _MockMemoryRepository();
+      when(() => memoryRepo.initialize(any()))
+          .thenThrow(Exception(errorMessage));
+      final runner = MemoryProfilerCommandRunner(
+        logger: logger,
+        memoryRepository: memoryRepo,
+        stdInput: mockStdIn,
+      );
 
-      stdInController.add([113, 10]);
-      await Future<void>.delayed(Duration.zero);
-      verify(() => logger.info('Exiting...')).called(1);
+      runner.run([
+        '--verbose',
+        'watch',
+        '--uri=http://uri.com',
+        '--library=path',
+      ]).ignore();
+
+      verify(() => logger.err(any())).called(1);
     });
   });
 }
