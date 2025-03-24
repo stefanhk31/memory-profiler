@@ -54,6 +54,7 @@ class WatchCommand extends Command<int> {
         ..echoMode = false;
 
       // TODO(@stefanhk31): Enable coverage when implementation is complete
+      //  https://github.com/stefanhk31/memory-profiler/issues/10
       // coverage:ignore-start
       await for (final codePoints in stdin) {
         for (final codePoint in codePoints) {

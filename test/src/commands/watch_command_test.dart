@@ -83,6 +83,7 @@ void main() {
     });
 
     // TODO(@stefanhk31): Fill in this test once logic is implemented
+    // https://github.com/stefanhk31/memory-profiler/issues/10
     test('fetches memory data at intervals', () async {
       const memoryData = 'data';
       when(() => memoryRepository.initialize(any()))
@@ -97,6 +98,7 @@ void main() {
     });
 
     // TODO(@stefanhk31): Fill in this test once logic is implemented
+    // https://github.com/stefanhk31/memory-profiler/issues/8
     test('takes detailed snapshot when threshold is reached', () async {
       const memoryData = 'data';
       when(() => memoryRepository.fetchMemoryData(any(), any()))
