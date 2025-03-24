@@ -81,8 +81,7 @@ void main() {
         'when vm Service has not been initialized',
         () async {
           expect(
-            () async =>
-                memoryRepository.fetchMemoryData(isolateId, libraryPath),
+            () async => memoryRepository.fetchMemoryData(isolateId),
             throwsA(
               isA<VmServiceNotInitializedException>(),
             ),
@@ -97,8 +96,7 @@ void main() {
         );
 
         await memoryRepository.initialize('uri');
-        final result =
-            await memoryRepository.fetchMemoryData(isolateId, libraryPath);
+        final result = await memoryRepository.fetchMemoryData(isolateId);
         expect(
           result,
           contains(_TestData.memoryUsage.heapUsage.toString()),
