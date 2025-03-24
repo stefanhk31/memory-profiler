@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:cli_completion/cli_completion.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/commands/commands.dart';
 import 'package:memory_profiler/src/version.dart';
+import 'package:memory_repository/memory_repository.dart';
 import 'package:pub_updater/pub_updater.dart';
 
 const executableName = 'memory_profiler';
@@ -21,9 +24,13 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
   /// {@macro memory_profiler_command_runner}
   MemoryProfilerCommandRunner({
     Logger? logger,
+    MemoryRepository? memoryRepository,
     PubUpdater? pubUpdater,
+    Stdin? stdInput,
   })  : _logger = logger ?? Logger(),
+        _memoryRepository = memoryRepository ?? MemoryRepository(),
         _pubUpdater = pubUpdater ?? PubUpdater(),
+        _stdin = stdInput ?? stdin,
         super(executableName, description) {
     // Add root options and flags
     argParser
@@ -39,7 +46,19 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
       );
 
     // Add sub commands
-    addCommand(WatchCommand(logger: _logger));
+    addCommand(
+      UpdateCommand(
+        logger: _logger,
+        pubUpdater: _pubUpdater,
+      ),
+    );
+    addCommand(
+      WatchCommand(
+        logger: _logger,
+        memoryRepository: _memoryRepository,
+        stdInput: _stdin,
+      ),
+    );
   }
 
   @override
@@ -47,6 +66,8 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
 
   final Logger _logger;
   final PubUpdater _pubUpdater;
+  final MemoryRepository _memoryRepository;
+  final Stdin _stdin;
 
   @override
   Future<int> run(Iterable<String> args) async {

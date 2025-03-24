@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -5,6 +6,7 @@ import 'package:cli_completion/cli_completion.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/command_runner.dart';
 import 'package:memory_profiler/src/version.dart';
+import 'package:memory_repository/memory_repository.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pub_updater/pub_updater.dart';
 import 'package:test/test.dart';
@@ -15,6 +17,10 @@ class _MockProgress extends Mock implements Progress {}
 
 class _MockPubUpdater extends Mock implements PubUpdater {}
 
+class _MockMemoryRepository extends Mock implements MemoryRepository {}
+
+class _MockStdIn extends Mock implements Stdin {}
+
 const latestVersion = '0.0.0';
 
 final updatePrompt = '''
@@ -24,21 +30,28 @@ Run ${lightCyan.wrap('$executableName update')} to update''';
 void main() {
   group('MemoryProfilerCommandRunner', () {
     late PubUpdater pubUpdater;
+    late MemoryRepository memoryRepository;
+    late Stdin mockStdIn;
     late Logger logger;
     late MemoryProfilerCommandRunner commandRunner;
 
     setUp(() {
       pubUpdater = _MockPubUpdater();
-
+      memoryRepository = _MockMemoryRepository();
+      mockStdIn = _MockStdIn();
       when(
         () => pubUpdater.getLatestVersion(any()),
       ).thenAnswer((_) async => packageVersion);
+
+      when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
 
       logger = _MockLogger();
 
       commandRunner = MemoryProfilerCommandRunner(
         logger: logger,
         pubUpdater: pubUpdater,
+        memoryRepository: memoryRepository,
+        stdInput: mockStdIn,
       );
     });
 
@@ -155,19 +168,45 @@ void main() {
       });
 
       test('enables verbose logging for sub commands', () async {
-        final result = await commandRunner.run([
+        when(() => memoryRepository.getMainIsolateId())
+            .thenAnswer((_) async => 'isolateId');
+
+        when(() => mockStdIn.hasTerminal).thenReturn(true);
+        when(() => mockStdIn.echoMode).thenReturn(false);
+        when(() => mockStdIn.lineMode).thenReturn(false);
+        final stdInController = StreamController<List<int>>();
+        final stdInSub = stdInController.stream.listen((_) {});
+
+        addTearDown(() async {
+          await stdInController.close();
+          await stdInSub.cancel();
+        });
+
+        when(
+          () => mockStdIn.listen(
+            any(),
+            onError: any(named: 'onError'),
+            onDone: any(named: 'onDone'),
+            cancelOnError: any(named: 'cancelOnError'),
+          ),
+        ).thenAnswer((_) => stdInSub);
+
+        commandRunner.run([
           '--verbose',
-          'sample',
-          '--cyan',
-        ]);
-        expect(result, equals(ExitCode.success.code));
+          'watch',
+          '--uri=http://uri.com',
+          '--library=path',
+        ]).ignore();
+
+        stdInController.add([113, 10]);
+        await Future<void>.delayed(Duration.zero);
 
         verify(() => logger.detail('Argument information:')).called(1);
         verify(() => logger.detail('  Top level options:')).called(1);
         verify(() => logger.detail('  - verbose: true')).called(1);
-        verify(() => logger.detail('  Command: sample')).called(1);
-        verify(() => logger.detail('    Command options:')).called(1);
-        verify(() => logger.detail('    - cyan: true')).called(1);
+        verify(() => logger.detail('  Command: watch')).called(1);
+
+        await stdInSub.cancel();
       });
     });
   });
