@@ -58,6 +58,17 @@ void main() {
       await stdInSub.cancel();
     });
 
+    test('can be instantiated without stdIn', () {
+      expect(
+        MemoryProfilerCommandRunner(
+          logger: logger,
+          memoryRepository: memoryRepository,
+          stdInput: mockStdIn,
+        ),
+        isNotNull,
+      );
+    });
+
     // TODO(@stefanhk31): Fill in this test once logic is implemented
     test('fetches memory data at intervals', () async {
       const memoryData = 'data';
