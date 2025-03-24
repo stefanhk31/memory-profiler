@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/command_runner.dart';
+import 'package:memory_profiler/src/commands/commands.dart';
 import 'package:memory_repository/memory_repository.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -58,15 +59,27 @@ void main() {
       await stdInSub.cancel();
     });
 
-    test('can be instantiated without stdIn', () {
-      expect(
-        MemoryProfilerCommandRunner(
-          logger: logger,
-          memoryRepository: memoryRepository,
-          stdInput: mockStdIn,
-        ),
-        isNotNull,
-      );
+    group('can be instantiated', () {
+      test('with custom stdIn', () {
+        expect(
+          WatchCommand(
+            logger: logger,
+            memoryRepository: memoryRepository,
+            stdInput: mockStdIn,
+          ),
+          isNotNull,
+        );
+      });
+
+      test('without custom stdIn', () {
+        expect(
+          WatchCommand(
+            logger: logger,
+            memoryRepository: memoryRepository,
+          ),
+          isNotNull,
+        );
+      });
     });
 
     // TODO(@stefanhk31): Fill in this test once logic is implemented
