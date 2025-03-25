@@ -30,13 +30,13 @@ class WatchCommand extends Command<int> {
 
   void _startListeningForStdIn() {
     if (_stdinSubscription != null) return;
-    if (!stdin.hasTerminal) return;
+    if (!_stdin.hasTerminal) return;
 
     stdin
       ..echoMode = false
       ..lineMode = false;
 
-    _stdinSubscription = stdin.listen((event) {
+    _stdinSubscription = _stdin.listen((event) {
       if (event.length == 1 && event.first == 'q'.codeUnitAt(0)) {
         _logger.info('Exiting...');
         _timer?.cancel();
@@ -49,9 +49,9 @@ class WatchCommand extends Command<int> {
     _stdinSubscription?.cancel();
     _stdinSubscription = null;
 
-    if (!stdin.hasTerminal) return;
+    if (!_stdin.hasTerminal) return;
 
-    stdin
+    _stdin
       ..lineMode = true
       ..echoMode = true;
   }
@@ -90,10 +90,6 @@ class WatchCommand extends Command<int> {
 
       _logger.info('Connected to VM at $appUri. Monitoring memory usage. '
           'Press "q" to quit.');
-
-      _stdin
-        ..lineMode = false
-        ..echoMode = false;
 
       _timer = Timer.periodic(
           Duration(
