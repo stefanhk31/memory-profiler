@@ -50,7 +50,14 @@ void main() {
           onDone: any(named: 'onDone'),
           cancelOnError: any(named: 'cancelOnError'),
         ),
-      ).thenAnswer((_) => stdInSub);
+      ).thenAnswer(
+        (invocation) => stdInController.stream.listen(
+          invocation.positionalArguments.first as void Function(List<int>),
+          onError: invocation.namedArguments[#onError] as Function?,
+          onDone: invocation.namedArguments[#onDone] as void Function()?,
+          cancelOnError: invocation.namedArguments[#cancelOnError] as bool?,
+        ),
+      );
 
       commandRunner = MemoryProfilerCommandRunner(
         logger: logger,
