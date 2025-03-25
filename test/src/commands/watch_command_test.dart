@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/command_runner.dart';
 import 'package:memory_profiler/src/commands/commands.dart';
@@ -22,6 +23,8 @@ void main() {
     late Stdin mockStdIn;
     late StreamController<List<int>> stdInController;
     late StreamSubscription<List<int>> stdInSub;
+    const isolateId = 'isolateId';
+    const memoryData = 'data';
 
     setUp(() {
       logger = _MockLogger();
@@ -30,7 +33,9 @@ void main() {
 
       when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
       when(() => memoryRepository.getMainIsolateId())
-          .thenAnswer((_) async => 'isolateId');
+          .thenAnswer((_) async => isolateId);
+      when(() => memoryRepository.fetchMemoryData(isolateId))
+          .thenAnswer((_) async => memoryData);
       mockStdIn = _MockStdIn();
       when(() => mockStdIn.hasTerminal).thenReturn(true);
       when(() => mockStdIn.echoMode).thenReturn(false);
@@ -82,19 +87,76 @@ void main() {
       });
     });
 
-    test('fetches memory data at intervals', () async {
-      const memoryData = 'data';
-      when(() => memoryRepository.initialize(any()))
-          .thenAnswer((_) async => memoryData);
+    test(
+      'fetches memory data at default interval '
+      'when none is provided',
+      () async {
+        fakeAsync((async) {
+          commandRunner.run([
+            '--verbose',
+            'watch',
+            '--uri=http://uri.com',
+            '--library=path',
+          ]).ignore();
 
-      commandRunner.run([
-        '--verbose',
-        'watch',
-        '--uri=http://uri.com',
-        '--library=path',
-      ]).ignore();
+          async
+            ..elapse(const Duration(milliseconds: defaultFetchInterval))
+            ..elapse(const Duration(milliseconds: defaultFetchInterval))
+            ..elapse(const Duration(milliseconds: defaultFetchInterval));
+          verify(() => logger.info(memoryData)).called(3);
 
-      verify(() => logger.info(memoryData)).called(1);
+          stdInController.add([113, 10]);
+          async.elapse(Duration.zero);
+        });
+      },
+    );
+
+    test(
+      'fetches memory data at default interval '
+      'when invalid interval is provided',
+      () async {
+        fakeAsync((async) {
+          commandRunner.run([
+            '--verbose',
+            'watch',
+            '--uri=http://uri.com',
+            '--library=path',
+            '--interval=invalid',
+          ]).ignore();
+
+          async
+            ..elapse(const Duration(milliseconds: defaultFetchInterval))
+            ..elapse(const Duration(milliseconds: defaultFetchInterval))
+            ..elapse(const Duration(milliseconds: defaultFetchInterval));
+          verify(() => logger.info(memoryData)).called(3);
+
+          stdInController.add([113, 10]);
+          async.elapse(Duration.zero);
+        });
+      },
+    );
+
+    test('fetches memory data at custom interval when provided', () async {
+      fakeAsync((async) {
+        const interval = 5000;
+
+        commandRunner.run([
+          '--verbose',
+          'watch',
+          '--uri=http://uri.com',
+          '--library=path',
+          '--interval=$interval',
+        ]).ignore();
+
+        async
+          ..elapse(const Duration(milliseconds: interval))
+          ..elapse(const Duration(milliseconds: interval))
+          ..elapse(const Duration(milliseconds: interval));
+        verify(() => logger.info(memoryData)).called(3);
+
+        stdInController.add([113, 10]);
+        async.elapse(Duration.zero);
+      });
     });
 
     // TODO(stefanhk31): Fill in this test once logic is implemented

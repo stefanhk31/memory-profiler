@@ -81,6 +81,7 @@ class WatchCommand extends Command<int> {
           if (codePoint == 113) {
             // 113 is the ASCII code for 'q'
             _logger.info('Exiting...');
+            timer.cancel();
             exit(0);
           }
         }
@@ -88,7 +89,6 @@ class WatchCommand extends Command<int> {
     } on Exception catch (e) {
       _logger.err('Watch failed: $e');
     } finally {
-      timer?.cancel();
       _stdin
         ..lineMode = true
         ..echoMode = true;
