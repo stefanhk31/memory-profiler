@@ -19,6 +19,21 @@ void main() {
       );
     });
 
+    group('can be instantiated', () {
+      test('with a vmServiceProvider', () {
+        expect(
+          MemoryRepository(
+            vmServiceProvider: (_) async => vmService,
+          ),
+          isNotNull,
+        );
+      });
+
+      test('without a vmServiceProvider', () {
+        expect(MemoryRepository(), isNotNull);
+      });
+    });
+
     group('initialize', () {
       test('can initialize vm Service', () async {
         await memoryRepository.initialize('uri');
@@ -96,16 +111,16 @@ void main() {
         await memoryRepository.initialize('uri');
         final result = await memoryRepository.fetchMemoryData(isolateId);
         expect(
-          result,
-          contains(_TestData.memoryUsage.heapUsage.toString()),
+          result.heapUsage,
+          equals(_TestData.memoryUsage.heapUsage),
         );
         expect(
-          result,
-          contains(_TestData.memoryUsage.heapCapacity.toString()),
+          result.heapCapacity,
+          equals(_TestData.memoryUsage.heapCapacity),
         );
         expect(
-          result,
-          contains(_TestData.memoryUsage.externalUsage.toString()),
+          result.externalUsage,
+          equals(_TestData.memoryUsage.externalUsage),
         );
       });
     });
@@ -123,7 +138,7 @@ void main() {
         );
         expect(
           result,
-          contains(_TestData.classInPath.bytesCurrent),
+          contains(_TestData.classInPath.bytesCurrent.toString()),
         );
         expect(
           result,
@@ -131,7 +146,7 @@ void main() {
         );
         expect(
           result,
-          contains(_TestData.secondClassInPath.bytesCurrent),
+          contains(_TestData.secondClassInPath.bytesCurrent.toString()),
         );
         expect(
           result.indexOf(
@@ -148,7 +163,7 @@ void main() {
         expect(
           result,
           isNot(
-            contains(_TestData.classNotInPath.bytesCurrent),
+            contains(_TestData.classNotInPath.bytesCurrent.toString()),
           ),
         );
       });
@@ -185,9 +200,9 @@ abstract class _TestData {
   );
 
   static final memoryUsage = MemoryUsage(
-    externalUsage: 500,
-    heapUsage: 2000,
-    heapCapacity: 5000,
+    externalUsage: 5000,
+    heapUsage: 2000000,
+    heapCapacity: 5000000,
   );
 
   static final allocationProfile = AllocationProfile(

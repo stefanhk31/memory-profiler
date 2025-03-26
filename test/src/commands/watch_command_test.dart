@@ -5,9 +5,11 @@ import 'package:fake_async/fake_async.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/command_runner.dart';
 import 'package:memory_profiler/src/commands/commands.dart';
+import 'package:memory_profiler/src/extensions/extensions.dart';
 import 'package:memory_repository/memory_repository.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
+import 'package:vm_service/vm_service.dart';
 
 class _MockLogger extends Mock implements Logger {}
 
@@ -23,7 +25,6 @@ void main() {
     late Stdin stdin;
     late StreamController<List<int>> stdInController;
     const isolateId = 'isolateId';
-    const memoryData = 'data';
 
     setUpAll(() {
       stdin = _MockStdIn();
@@ -59,7 +60,7 @@ void main() {
       when(() => memoryRepository.getMainIsolateId())
           .thenAnswer((_) async => isolateId);
       when(() => memoryRepository.fetchMemoryData(isolateId))
-          .thenAnswer((_) async => memoryData);
+          .thenAnswer((_) async => _TestData.memoryUsage);
 
       commandRunner = MemoryProfilerCommandRunner(
         logger: logger,
@@ -107,7 +108,14 @@ void main() {
             ..elapse(const Duration(milliseconds: defaultFetchInterval))
             ..elapse(const Duration(milliseconds: defaultFetchInterval))
             ..elapse(const Duration(milliseconds: defaultFetchInterval));
-          verify(() => logger.info(memoryData)).called(3);
+          verify(
+            () => logger.info(
+              any(
+                that:
+                    contains(_TestData.memoryUsage.heapUsage!.toMB.toString()),
+              ),
+            ),
+          ).called(3);
 
           stdInController.add([113]);
           async.elapse(Duration.zero);
@@ -132,8 +140,14 @@ void main() {
             ..elapse(const Duration(milliseconds: defaultFetchInterval))
             ..elapse(const Duration(milliseconds: defaultFetchInterval))
             ..elapse(const Duration(milliseconds: defaultFetchInterval));
-          verify(() => logger.info(memoryData)).called(3);
-
+          verify(
+            () => logger.info(
+              any(
+                that:
+                    contains(_TestData.memoryUsage.heapUsage!.toMB.toString()),
+              ),
+            ),
+          ).called(3);
           stdInController.add([113]);
           async.elapse(Duration.zero);
         });
@@ -156,7 +170,13 @@ void main() {
           ..elapse(const Duration(milliseconds: interval))
           ..elapse(const Duration(milliseconds: interval))
           ..elapse(const Duration(milliseconds: interval));
-        verify(() => logger.info(memoryData)).called(3);
+        verify(
+          () => logger.info(
+            any(
+              that: contains(_TestData.memoryUsage.heapUsage!.toMB.toString()),
+            ),
+          ),
+        ).called(3);
 
         stdInController.add([113]);
         async.elapse(Duration.zero);
@@ -166,9 +186,8 @@ void main() {
     // TODO(stefanhk31): Fill in this test once logic is implemented
     // https://github.com/stefanhk31/memory-profiler/issues/8
     test('takes detailed snapshot when threshold is reached', () async {
-      const memoryData = 'data';
       when(() => memoryRepository.fetchMemoryData(any()))
-          .thenAnswer((_) async => memoryData);
+          .thenAnswer((_) async => _TestData.memoryUsage);
 
       commandRunner.run([
         '--verbose',
@@ -199,4 +218,12 @@ void main() {
       verify(() => logger.err(any())).called(1);
     });
   });
+}
+
+abstract class _TestData {
+  static final memoryUsage = MemoryUsage(
+    externalUsage: 5000,
+    heapUsage: 2000000,
+    heapCapacity: 5000000,
+  );
 }

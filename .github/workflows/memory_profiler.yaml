@@ -18,6 +18,7 @@ on:
       - ".github/workflows/memory_profiler.yaml"
       - "lib/**"
       - "test/**"
+      - "packages/memory_repository/**"
       - "pubspec.yaml"
 
 jobs:

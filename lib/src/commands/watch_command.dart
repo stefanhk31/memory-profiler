@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
+import 'package:memory_profiler/src/extensions/byte_converter.dart';
 import 'package:memory_repository/memory_repository.dart';
 
 /// Default interval at which a fetch of memory usage is made.
@@ -10,7 +11,8 @@ const defaultFetchInterval = 60000;
 
 /// {@template watch_command}
 ///
-/// `memory_profiler watch --uri=<uri> --library=<library>`
+/// `memory_profiler watch --uri=<uri> --library=<library> '
+/// 'interval=<interval> --threshold=<threshold>`
 /// A [Command] to watch a currently running Flutter app.
 /// {@endtemplate}
 class WatchCommand extends Command<int> {
@@ -71,9 +73,12 @@ class WatchCommand extends Command<int> {
                 : defaultFetchInterval,
           ), (_) async {
         _logger.info('Fetching current memory usage...');
-        final memoryData =
+        final memoryUsage =
             await _memoryRepository.fetchMemoryData(mainIsolateId);
-        _logger.info(memoryData);
+        _logger.info('Memory Usage: '
+            '\nHeap Usage: ${memoryUsage.heapUsage?.toMB} MB '
+            '\nHeap Capacity: ${memoryUsage.heapCapacity?.toMB} MB'
+            '\nExternal Usage: ${memoryUsage.externalUsage?.toMB} MB');
       });
 
       await for (final codePoints in _stdin) {
