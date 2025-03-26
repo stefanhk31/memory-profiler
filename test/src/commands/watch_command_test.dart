@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/command_runner.dart';
 import 'package:memory_profiler/src/commands/commands.dart';
@@ -19,44 +20,52 @@ void main() {
     late Logger logger;
     late MemoryRepository memoryRepository;
     late MemoryProfilerCommandRunner commandRunner;
-    late Stdin mockStdIn;
+    late Stdin stdin;
     late StreamController<List<int>> stdInController;
-    late StreamSubscription<List<int>> stdInSub;
+    const isolateId = 'isolateId';
+    const memoryData = 'data';
 
-    setUp(() {
-      logger = _MockLogger();
-      when(() => logger.info(any())).thenAnswer((_) {});
-      memoryRepository = _MockMemoryRepository();
-
-      when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
-      when(() => memoryRepository.getMainIsolateId())
-          .thenAnswer((_) async => 'isolateId');
-      mockStdIn = _MockStdIn();
-      when(() => mockStdIn.hasTerminal).thenReturn(true);
-      when(() => mockStdIn.echoMode).thenReturn(false);
-      when(() => mockStdIn.lineMode).thenReturn(false);
-
+    setUpAll(() {
+      stdin = _MockStdIn();
       stdInController = StreamController<List<int>>();
-      stdInSub = stdInController.stream.listen((_) {});
+      addTearDown(stdInController.close);
+      when(() => stdin.hasTerminal).thenReturn(true);
+      when(() => stdin.echoMode).thenReturn(false);
+      when(() => stdin.lineMode).thenReturn(false);
+
       when(
-        () => mockStdIn.listen(
+        () => stdin.listen(
           any(),
           onError: any(named: 'onError'),
           onDone: any(named: 'onDone'),
           cancelOnError: any(named: 'cancelOnError'),
         ),
-      ).thenAnswer((_) => stdInSub);
+      ).thenAnswer(
+        (invocation) => stdInController.stream.listen(
+          invocation.positionalArguments.first as void Function(List<int>),
+          onError: invocation.namedArguments[#onError] as Function?,
+          onDone: invocation.namedArguments[#onDone] as void Function()?,
+          cancelOnError: invocation.namedArguments[#cancelOnError] as bool?,
+        ),
+      );
+    });
+
+    setUp(() {
+      logger = _MockLogger();
+      memoryRepository = _MockMemoryRepository();
+
+      when(() => logger.info(any())).thenAnswer((_) {});
+      when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
+      when(() => memoryRepository.getMainIsolateId())
+          .thenAnswer((_) async => isolateId);
+      when(() => memoryRepository.fetchMemoryData(isolateId))
+          .thenAnswer((_) async => memoryData);
 
       commandRunner = MemoryProfilerCommandRunner(
         logger: logger,
         memoryRepository: memoryRepository,
-        stdInput: mockStdIn,
+        stdinOpt: stdin,
       );
-    });
-
-    tearDown(() async {
-      await stdInController.close();
-      await stdInSub.cancel();
     });
 
     group('can be instantiated', () {
@@ -65,7 +74,7 @@ void main() {
           WatchCommand(
             logger: logger,
             memoryRepository: memoryRepository,
-            stdInput: mockStdIn,
+            stdInput: stdin,
           ),
           isNotNull,
         );
@@ -82,26 +91,83 @@ void main() {
       });
     });
 
-    // TODO(stefanhk31): Fill in this test once logic is implemented
-    // https://github.com/stefanhk31/memory-profiler/issues/10
-    test('fetches memory data at intervals', () async {
-      const memoryData = 'data';
-      when(() => memoryRepository.initialize(any()))
-          .thenAnswer((_) async => memoryData);
+    test(
+      'fetches memory data at default interval '
+      'when none is provided',
+      () async {
+        fakeAsync((async) {
+          commandRunner.run([
+            '--verbose',
+            'watch',
+            '--uri=http://uri.com',
+            '--library=path',
+          ]).ignore();
 
-      commandRunner.run([
-        '--verbose',
-        'watch',
-        '--uri=http://uri.com',
-        '--library=path',
-      ]).ignore();
+          async
+            ..elapse(const Duration(milliseconds: defaultFetchInterval))
+            ..elapse(const Duration(milliseconds: defaultFetchInterval))
+            ..elapse(const Duration(milliseconds: defaultFetchInterval));
+          verify(() => logger.info(memoryData)).called(3);
+
+          stdInController.add([113]);
+          async.elapse(Duration.zero);
+        });
+      },
+    );
+
+    test(
+      'fetches memory data at default interval '
+      'when invalid interval is provided',
+      () async {
+        fakeAsync((async) {
+          commandRunner.run([
+            '--verbose',
+            'watch',
+            '--uri=http://uri.com',
+            '--library=path',
+            '--interval=invalid',
+          ]).ignore();
+
+          async
+            ..elapse(const Duration(milliseconds: defaultFetchInterval))
+            ..elapse(const Duration(milliseconds: defaultFetchInterval))
+            ..elapse(const Duration(milliseconds: defaultFetchInterval));
+          verify(() => logger.info(memoryData)).called(3);
+
+          stdInController.add([113]);
+          async.elapse(Duration.zero);
+        });
+      },
+    );
+
+    test('fetches memory data at custom interval when provided', () async {
+      fakeAsync((async) {
+        const interval = 5000;
+
+        commandRunner.run([
+          '--verbose',
+          'watch',
+          '--uri=http://uri.com',
+          '--library=path',
+          '--interval=$interval',
+        ]).ignore();
+
+        async
+          ..elapse(const Duration(milliseconds: interval))
+          ..elapse(const Duration(milliseconds: interval))
+          ..elapse(const Duration(milliseconds: interval));
+        verify(() => logger.info(memoryData)).called(3);
+
+        stdInController.add([113]);
+        async.elapse(Duration.zero);
+      });
     });
 
     // TODO(stefanhk31): Fill in this test once logic is implemented
     // https://github.com/stefanhk31/memory-profiler/issues/8
     test('takes detailed snapshot when threshold is reached', () async {
       const memoryData = 'data';
-      when(() => memoryRepository.fetchMemoryData(any(), any()))
+      when(() => memoryRepository.fetchMemoryData(any()))
           .thenAnswer((_) async => memoryData);
 
       commandRunner.run([
@@ -120,7 +186,7 @@ void main() {
       final runner = MemoryProfilerCommandRunner(
         logger: logger,
         memoryRepository: memoryRepo,
-        stdInput: mockStdIn,
+        stdinOpt: stdin,
       );
 
       runner.run([

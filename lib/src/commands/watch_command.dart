@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_repository/memory_repository.dart';
+
+/// Default interval at which a fetch of memory usage is made.
+const defaultFetchInterval = 60000;
 
 /// {@template watch_command}
 ///
@@ -20,7 +24,8 @@ class WatchCommand extends Command<int> {
         _stdin = stdInput ?? stdin {
     argParser
       ..addOption('uri')
-      ..addOption('library');
+      ..addOption('library')
+      ..addOption('interval');
   }
 
   @override
@@ -33,11 +38,17 @@ class WatchCommand extends Command<int> {
   final Logger _logger;
   final MemoryRepository _memoryRepository;
   final Stdin _stdin;
+  Timer? _timer;
 
   @override
   Future<int> run() async {
     try {
       final appUri = argResults?['uri'] as String;
+      final interval = argResults?['interval'] as String?;
+      // TODO(stefanhk31): Remove linter ignore when detailed snapshot
+      // is implemented
+      // https://github.com/stefanhk31/memory-profiler/issues/8
+      // ignore: unused_local_variable
       final library = argResults?['library'] as String;
       final uri = Uri.parse(appUri);
       final wsUri = uri.replace(scheme: 'ws');
@@ -46,40 +57,44 @@ class WatchCommand extends Command<int> {
 
       final mainIsolateId = await _memoryRepository.getMainIsolateId();
 
-      _logger.info('Connected to VM at $appUri. Press spacebar to get memory '
-          'usage, or "q" to quit.');
+      _logger.info('Connected to VM at $appUri. Monitoring memory usage. '
+          'Press "q" to quit.');
 
       _stdin
         ..lineMode = false
         ..echoMode = false;
 
-      // TODO(stefanhk31): Enable coverage when implementation is complete
-      // https://github.com/stefanhk31/memory-profiler/issues/10
-      // coverage:ignore-start
-      await for (final codePoints in stdin) {
+      _timer = Timer.periodic(
+          Duration(
+            milliseconds: interval != null
+                ? int.tryParse(interval) ?? defaultFetchInterval
+                : defaultFetchInterval,
+          ), (_) async {
+        _logger.info('Fetching current memory usage...');
+        final memoryData =
+            await _memoryRepository.fetchMemoryData(mainIsolateId);
+        _logger.info(memoryData);
+      });
+
+      await for (final codePoints in _stdin) {
         for (final codePoint in codePoints) {
-          if (codePoint == 32) {
-            // 32 is the ASCII code for spacebar
-            _logger.info('Retrieving current memory stats...');
-            final memoryData =
-                await _memoryRepository.fetchMemoryData(mainIsolateId, library);
-            _logger.info(memoryData);
-          } else if (codePoint == 113) {
+          if (codePoint == 113) {
             // 113 is the ASCII code for 'q'
             _logger.info('Exiting...');
-            exit(0);
+            _timer?.cancel();
+            _stdin
+              ..lineMode = true
+              ..echoMode = true;
+            return ExitCode.success.code;
           }
         }
       }
-      // coverage:ignore-end
     } on Exception catch (e) {
       _logger.err('Watch failed: $e');
-    } finally {
       _stdin
         ..lineMode = true
         ..echoMode = true;
     }
-
-    return ExitCode.success.code;
+    return ExitCode.software.code;
   }
 }

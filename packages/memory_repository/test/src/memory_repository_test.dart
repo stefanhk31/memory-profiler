@@ -75,14 +75,12 @@ void main() {
 
     group('fetchMemoryData', () {
       const isolateId = 'id';
-      const libraryPath = 'path';
       test(
         'throws VmServiceNotInitializedException '
         'when vm Service has not been initialized',
         () async {
           expect(
-            () async =>
-                memoryRepository.fetchMemoryData(isolateId, libraryPath),
+            () async => memoryRepository.fetchMemoryData(isolateId),
             throwsA(
               isA<VmServiceNotInitializedException>(),
             ),
@@ -90,15 +88,13 @@ void main() {
         },
       );
 
-      test('returns sorted memory data for classes in given library path',
-          () async {
+      test('returns memory usage', () async {
         when(() => vmService.getAllocationProfile(isolateId)).thenAnswer(
           (_) async => _TestData.allocationProfile,
         );
 
         await memoryRepository.initialize('uri');
-        final result =
-            await memoryRepository.fetchMemoryData(isolateId, libraryPath);
+        final result = await memoryRepository.fetchMemoryData(isolateId);
         expect(
           result,
           contains(_TestData.memoryUsage.heapUsage.toString()),
@@ -111,13 +107,31 @@ void main() {
           result,
           contains(_TestData.memoryUsage.externalUsage.toString()),
         );
+      });
+    });
+
+    group('getDetailedMemorySnapshot', () {
+      test('returns sorted memory data for classes in given library path',
+          () async {
+        final result = await memoryRepository.getDetailedMemorySnapshot(
+          _TestData.allocationProfile,
+          'path',
+        );
         expect(
           result,
           contains(_TestData.classInPath.classRef?.name),
         );
         expect(
           result,
+          contains(_TestData.classInPath.bytesCurrent),
+        );
+        expect(
+          result,
           contains(_TestData.secondClassInPath.classRef?.name),
+        );
+        expect(
+          result,
+          contains(_TestData.secondClassInPath.bytesCurrent),
         );
         expect(
           result.indexOf(
@@ -129,6 +143,12 @@ void main() {
           result,
           isNot(
             contains(_TestData.classNotInPath.classRef?.name),
+          ),
+        );
+        expect(
+          result,
+          isNot(
+            contains(_TestData.classNotInPath.bytesCurrent),
           ),
         );
       });
@@ -161,7 +181,7 @@ abstract class _TestData {
       name: 'classNotInPath',
       library: LibraryRef(id: 'libraryId', uri: 'other'),
     ),
-    bytesCurrent: 100,
+    bytesCurrent: 200,
   );
 
   static final memoryUsage = MemoryUsage(

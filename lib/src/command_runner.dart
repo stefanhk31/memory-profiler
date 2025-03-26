@@ -26,11 +26,11 @@ class MemoryProfilerCommandRunner extends CompletionCommandRunner<int> {
     Logger? logger,
     MemoryRepository? memoryRepository,
     PubUpdater? pubUpdater,
-    Stdin? stdInput,
+    Stdin? stdinOpt,
   })  : _logger = logger ?? Logger(),
         _memoryRepository = memoryRepository ?? MemoryRepository(),
         _pubUpdater = pubUpdater ?? PubUpdater(),
-        _stdin = stdInput ?? stdin,
+        _stdin = stdinOpt ?? stdin,
         super(executableName, description) {
     // Add root options and flags
     argParser

@@ -52,9 +52,8 @@ class MemoryRepository {
     return mainIsolate.id!;
   }
 
-  /// Fetches current memory usage and detailed class heap stats,
-  /// given a particular [isolateId] and a [libraryPath].
-  Future<String> fetchMemoryData(String isolateId, String libraryPath) async {
+  /// Fetches current memory usage given a particular [isolateId].
+  Future<String> fetchMemoryData(String isolateId) async {
     if (_vmService == null) {
       throw VmServiceNotInitializedException();
     }
@@ -68,8 +67,18 @@ class MemoryRepository {
     sb.write('\nMemory Usage: '
         '\nHeap Usage: ${memoryUsage?.heapUsage} bytes '
         '\nHeap Capacity: ${memoryUsage?.heapCapacity} bytes'
-        '\nExternal Usage: ${memoryUsage?.externalUsage} bytes '
-        '\nDetails: ');
+        '\nExternal Usage: ${memoryUsage?.externalUsage} bytes');
+
+    return sb.toString();
+  }
+
+  /// Fetches a detailed snapshot of memory usage given an [allocationProfile],
+  /// and extracts [ClassHeapStats] of members in the given [libraryPath]
+  Future<String> getDetailedMemorySnapshot(
+    AllocationProfile allocationProfile,
+    String libraryPath,
+  ) async {
+    final sb = StringBuffer()..write('Detailed Memory Snapshot: ');
 
     final members = allocationProfile.members ?? <ClassHeapStats>[];
 
