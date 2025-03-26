@@ -1,4 +1,4 @@
-name: memory_profiler
+name: memory_repository
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
