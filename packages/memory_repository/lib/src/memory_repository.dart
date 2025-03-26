@@ -53,23 +53,15 @@ class MemoryRepository {
   }
 
   /// Fetches current memory usage given a particular [isolateId].
-  Future<String> fetchMemoryData(String isolateId) async {
+  Future<MemoryUsage> fetchMemoryData(String isolateId) async {
     if (_vmService == null) {
       throw VmServiceNotInitializedException();
     }
 
     final vmService = _vmService!;
 
-    final sb = StringBuffer();
-
     final allocationProfile = await vmService.getAllocationProfile(isolateId);
-    final memoryUsage = allocationProfile.memoryUsage;
-    sb.write('\nMemory Usage: '
-        '\nHeap Usage: ${memoryUsage?.heapUsage} bytes '
-        '\nHeap Capacity: ${memoryUsage?.heapCapacity} bytes'
-        '\nExternal Usage: ${memoryUsage?.externalUsage} bytes');
-
-    return sb.toString();
+    return allocationProfile.memoryUsage ?? MemoryUsage();
   }
 
   /// Fetches a detailed snapshot of memory usage given an [allocationProfile],
