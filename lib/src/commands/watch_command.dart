@@ -9,6 +9,9 @@ import 'package:memory_repository/memory_repository.dart';
 /// Default interval at which a fetch of memory usage is made.
 const defaultFetchInterval = 60000;
 
+/// Default memory threshold (in MB) at which a snapshot is taken.
+const defaultThreshold = 100;
+
 /// {@template watch_command}
 ///
 /// `memory_profiler watch --uri=<uri> --library=<library> '
@@ -27,7 +30,8 @@ class WatchCommand extends Command<int> {
     argParser
       ..addOption('uri')
       ..addOption('library')
-      ..addOption('interval');
+      ..addOption('interval')
+      ..addOption('threshold');
   }
 
   @override
@@ -52,6 +56,7 @@ class WatchCommand extends Command<int> {
       // https://github.com/stefanhk31/memory-profiler/issues/8
       // ignore: unused_local_variable
       final library = argResults?['library'] as String;
+      final threshold = argResults?['threshold'] as String?;
       final uri = Uri.parse(appUri);
       final wsUri = uri.replace(scheme: 'ws');
 
@@ -73,12 +78,28 @@ class WatchCommand extends Command<int> {
                 : defaultFetchInterval,
           ), (_) async {
         _logger.info('Fetching current memory usage...');
-        final memoryUsage =
-            await _memoryRepository.fetchMemoryData(mainIsolateId);
+        final allocationProfile =
+            await _memoryRepository.fetchAllocationProfile(mainIsolateId);
+        final memoryUsage = allocationProfile.memoryUsage;
         _logger.info('Memory Usage: '
-            '\nHeap Usage: ${memoryUsage.heapUsage?.toMB} MB '
-            '\nHeap Capacity: ${memoryUsage.heapCapacity?.toMB} MB'
-            '\nExternal Usage: ${memoryUsage.externalUsage?.toMB} MB');
+            '\nHeap Usage: ${memoryUsage?.heapUsage?.toMB} MB '
+            '\nHeap Capacity: ${memoryUsage?.heapCapacity?.toMB} MB'
+            '\nExternal Usage: ${memoryUsage?.externalUsage?.toMB} MB');
+
+        final thresholdVal = threshold != null
+            ? int.tryParse(threshold) ?? defaultThreshold
+            : defaultThreshold;
+
+        if (memoryUsage?.heapUsage != null &&
+            memoryUsage!.heapUsage!.toMB >= thresholdVal) {
+          _logger.info('Memory usage exceeded threshold of $thresholdVal. '
+              'Taking snapshot... ');
+          final snapshot = await _memoryRepository.getDetailedMemorySnapshot(
+            allocationProfile,
+            library,
+          );
+          _logger.info(snapshot);
+        }
       });
 
       await for (final codePoints in _stdin) {

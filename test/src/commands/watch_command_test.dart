@@ -59,8 +59,8 @@ void main() {
       when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
       when(() => memoryRepository.getMainIsolateId())
           .thenAnswer((_) async => isolateId);
-      when(() => memoryRepository.fetchMemoryData(isolateId))
-          .thenAnswer((_) async => _TestData.memoryUsage);
+      when(() => memoryRepository.fetchAllocationProfile(isolateId))
+          .thenAnswer((_) async => _TestData.allocationProfile);
 
       commandRunner = MemoryProfilerCommandRunner(
         logger: logger,
@@ -186,8 +186,8 @@ void main() {
     // TODO(stefanhk31): Fill in this test once logic is implemented
     // https://github.com/stefanhk31/memory-profiler/issues/8
     test('takes detailed snapshot when threshold is reached', () async {
-      when(() => memoryRepository.fetchMemoryData(any()))
-          .thenAnswer((_) async => _TestData.memoryUsage);
+      when(() => memoryRepository.fetchAllocationProfile(any()))
+          .thenAnswer((_) async => _TestData.allocationProfile);
 
       commandRunner.run([
         '--verbose',
@@ -225,5 +225,9 @@ abstract class _TestData {
     externalUsage: 5000,
     heapUsage: 2000000,
     heapCapacity: 5000000,
+  );
+
+  static final allocationProfile = AllocationProfile(
+    memoryUsage: memoryUsage,
   );
 }

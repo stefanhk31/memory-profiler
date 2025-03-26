@@ -88,14 +88,14 @@ void main() {
       });
     });
 
-    group('fetchMemoryData', () {
+    group('fetchAllocaitonProfile', () {
       const isolateId = 'id';
       test(
         'throws VmServiceNotInitializedException '
         'when vm Service has not been initialized',
         () async {
           expect(
-            () async => memoryRepository.fetchMemoryData(isolateId),
+            () async => memoryRepository.fetchAllocationProfile(isolateId),
             throwsA(
               isA<VmServiceNotInitializedException>(),
             ),
@@ -109,18 +109,10 @@ void main() {
         );
 
         await memoryRepository.initialize('uri');
-        final result = await memoryRepository.fetchMemoryData(isolateId);
+        final result = await memoryRepository.fetchAllocationProfile(isolateId);
         expect(
-          result.heapUsage,
-          equals(_TestData.memoryUsage.heapUsage),
-        );
-        expect(
-          result.heapCapacity,
-          equals(_TestData.memoryUsage.heapCapacity),
-        );
-        expect(
-          result.externalUsage,
-          equals(_TestData.memoryUsage.externalUsage),
+          result,
+          equals(_TestData.allocationProfile),
         );
       });
     });
