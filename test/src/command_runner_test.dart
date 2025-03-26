@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:cli_completion/cli_completion.dart';
-import 'package:fake_async/fake_async.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/command_runner.dart';
 import 'package:memory_profiler/src/version.dart';

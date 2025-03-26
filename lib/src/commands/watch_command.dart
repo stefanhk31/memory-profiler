@@ -91,8 +91,10 @@ class WatchCommand extends Command<int> {
       }
     } on Exception catch (e) {
       _logger.err('Watch failed: $e');
-      return ExitCode.software.code;
+      _stdin
+        ..lineMode = true
+        ..echoMode = true;
     }
-    return ExitCode.success.code;
+    return ExitCode.software.code;
   }
 }

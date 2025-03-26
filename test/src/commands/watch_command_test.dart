@@ -25,23 +25,14 @@ void main() {
     const isolateId = 'isolateId';
     const memoryData = 'data';
 
-    setUp(() {
-      logger = _MockLogger();
-      when(() => logger.info(any())).thenAnswer((_) {});
-      memoryRepository = _MockMemoryRepository();
-
-      when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
-      when(() => memoryRepository.getMainIsolateId())
-          .thenAnswer((_) async => isolateId);
-      when(() => memoryRepository.fetchMemoryData(isolateId))
-          .thenAnswer((_) async => memoryData);
+    setUpAll(() {
       stdin = _MockStdIn();
+      stdInController = StreamController<List<int>>();
+      addTearDown(stdInController.close);
       when(() => stdin.hasTerminal).thenReturn(true);
       when(() => stdin.echoMode).thenReturn(false);
       when(() => stdin.lineMode).thenReturn(false);
 
-      stdInController = StreamController<List<int>>();
-      addTearDown(stdInController.close);
       when(
         () => stdin.listen(
           any(),
@@ -57,6 +48,18 @@ void main() {
           cancelOnError: invocation.namedArguments[#cancelOnError] as bool?,
         ),
       );
+    });
+
+    setUp(() {
+      logger = _MockLogger();
+      memoryRepository = _MockMemoryRepository();
+
+      when(() => logger.info(any())).thenAnswer((_) {});
+      when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
+      when(() => memoryRepository.getMainIsolateId())
+          .thenAnswer((_) async => isolateId);
+      when(() => memoryRepository.fetchMemoryData(isolateId))
+          .thenAnswer((_) async => memoryData);
 
       commandRunner = MemoryProfilerCommandRunner(
         logger: logger,
@@ -64,6 +67,7 @@ void main() {
         stdinOpt: stdin,
       );
     });
+
     group('can be instantiated', () {
       test('with custom stdIn', () {
         expect(
