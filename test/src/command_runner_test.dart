@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:cli_completion/cli_completion.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/command_runner.dart';
 import 'package:memory_profiler/src/version.dart';
@@ -51,7 +52,7 @@ void main() {
         logger: logger,
         pubUpdater: pubUpdater,
         memoryRepository: memoryRepository,
-        stdInput: mockStdIn,
+        stdinOpt: mockStdIn,
       );
     });
 
@@ -175,11 +176,8 @@ void main() {
         when(() => mockStdIn.echoMode).thenReturn(false);
         when(() => mockStdIn.lineMode).thenReturn(false);
         final stdInController = StreamController<List<int>>();
-        final stdInSub = stdInController.stream.listen((_) {});
-
         addTearDown(() async {
           await stdInController.close();
-          await stdInSub.cancel();
         });
 
         when(
@@ -189,7 +187,14 @@ void main() {
             onDone: any(named: 'onDone'),
             cancelOnError: any(named: 'cancelOnError'),
           ),
-        ).thenAnswer((_) => stdInSub);
+        ).thenAnswer(
+          (invocation) => stdInController.stream.listen(
+            invocation.positionalArguments.first as void Function(List<int>),
+            onError: invocation.namedArguments[#onError] as Function?,
+            onDone: invocation.namedArguments[#onDone] as void Function()?,
+            cancelOnError: invocation.namedArguments[#cancelOnError] as bool?,
+          ),
+        );
 
         commandRunner.run([
           '--verbose',
@@ -198,15 +203,13 @@ void main() {
           '--library=path',
         ]).ignore();
 
-        stdInController.add([113, 10]);
+        stdInController.add([113]);
         await Future<void>.delayed(Duration.zero);
 
         verify(() => logger.detail('Argument information:')).called(1);
         verify(() => logger.detail('  Top level options:')).called(1);
         verify(() => logger.detail('  - verbose: true')).called(1);
         verify(() => logger.detail('  Command: watch')).called(1);
-
-        await stdInSub.cancel();
       });
     });
   });

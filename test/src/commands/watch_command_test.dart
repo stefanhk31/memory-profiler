@@ -20,9 +20,8 @@ void main() {
     late Logger logger;
     late MemoryRepository memoryRepository;
     late MemoryProfilerCommandRunner commandRunner;
-    late Stdin mockStdIn;
+    late Stdin stdin;
     late StreamController<List<int>> stdInController;
-    late StreamSubscription<List<int>> stdInSub;
     const isolateId = 'isolateId';
     const memoryData = 'data';
 
@@ -36,15 +35,15 @@ void main() {
           .thenAnswer((_) async => isolateId);
       when(() => memoryRepository.fetchMemoryData(isolateId))
           .thenAnswer((_) async => memoryData);
-      mockStdIn = _MockStdIn();
-      when(() => mockStdIn.hasTerminal).thenReturn(true);
-      when(() => mockStdIn.echoMode).thenReturn(false);
-      when(() => mockStdIn.lineMode).thenReturn(false);
+      stdin = _MockStdIn();
+      when(() => stdin.hasTerminal).thenReturn(true);
+      when(() => stdin.echoMode).thenReturn(false);
+      when(() => stdin.lineMode).thenReturn(false);
 
       stdInController = StreamController<List<int>>();
-      stdInSub = stdInController.stream.listen((_) {});
+      addTearDown(stdInController.close);
       when(
-        () => mockStdIn.listen(
+        () => stdin.listen(
           any(),
           onError: any(named: 'onError'),
           onDone: any(named: 'onDone'),
@@ -62,22 +61,16 @@ void main() {
       commandRunner = MemoryProfilerCommandRunner(
         logger: logger,
         memoryRepository: memoryRepository,
-        stdInput: mockStdIn,
+        stdinOpt: stdin,
       );
     });
-
-    tearDown(() async {
-      await stdInController.close();
-      await stdInSub.cancel();
-    });
-
     group('can be instantiated', () {
       test('with custom stdIn', () {
         expect(
           WatchCommand(
             logger: logger,
             memoryRepository: memoryRepository,
-            stdInput: mockStdIn,
+            stdInput: stdin,
           ),
           isNotNull,
         );
@@ -112,7 +105,7 @@ void main() {
             ..elapse(const Duration(milliseconds: defaultFetchInterval));
           verify(() => logger.info(memoryData)).called(3);
 
-          stdInController.add([113, 10]);
+          stdInController.add([113]);
           async.elapse(Duration.zero);
         });
       },
@@ -137,7 +130,7 @@ void main() {
             ..elapse(const Duration(milliseconds: defaultFetchInterval));
           verify(() => logger.info(memoryData)).called(3);
 
-          stdInController.add([113, 10]);
+          stdInController.add([113]);
           async.elapse(Duration.zero);
         });
       },
@@ -161,7 +154,7 @@ void main() {
           ..elapse(const Duration(milliseconds: interval));
         verify(() => logger.info(memoryData)).called(3);
 
-        stdInController.add([113, 10]);
+        stdInController.add([113]);
         async.elapse(Duration.zero);
       });
     });
@@ -189,7 +182,7 @@ void main() {
       final runner = MemoryProfilerCommandRunner(
         logger: logger,
         memoryRepository: memoryRepo,
-        stdInput: mockStdIn,
+        stdinOpt: stdin,
       );
 
       runner.run([

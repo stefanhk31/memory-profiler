@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Memory Profiler",
+            "type": "dart",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/memory_profiler.dart",
+            "args": [
+                "watch",
+                "--uri=http://127.0.0.1:59826/EK1Q7laxa9E=/",
+                "--library=fresh_app",
+                "--interval=10000"
+            ]
+        }
+    ]
+}

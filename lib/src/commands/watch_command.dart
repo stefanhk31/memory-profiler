@@ -28,34 +28,6 @@ class WatchCommand extends Command<int> {
       ..addOption('interval');
   }
 
-  void _startListeningForStdIn() {
-    if (_stdinSubscription != null) return;
-    if (!_stdin.hasTerminal) return;
-
-    stdin
-      ..echoMode = false
-      ..lineMode = false;
-
-    _stdinSubscription = _stdin.listen((event) {
-      if (event.length == 1 && event.first == 'q'.codeUnitAt(0)) {
-        _logger.info('Exiting...');
-        _timer?.cancel();
-        exit(0);
-      }
-    });
-  }
-
-  void _stopListeningForStdin() {
-    _stdinSubscription?.cancel();
-    _stdinSubscription = null;
-
-    if (!_stdin.hasTerminal) return;
-
-    _stdin
-      ..lineMode = true
-      ..echoMode = true;
-  }
-
   @override
   String get description => 'A command to watch a currently running '
       'Flutter app to capture memory usage';
@@ -66,13 +38,10 @@ class WatchCommand extends Command<int> {
   final Logger _logger;
   final MemoryRepository _memoryRepository;
   final Stdin _stdin;
-  StreamSubscription<List<int>>? _stdinSubscription;
   Timer? _timer;
 
   @override
   Future<int> run() async {
-    _startListeningForStdIn();
-
     try {
       final appUri = argResults?['uri'] as String;
       final interval = argResults?['interval'] as String?;
@@ -91,6 +60,10 @@ class WatchCommand extends Command<int> {
       _logger.info('Connected to VM at $appUri. Monitoring memory usage. '
           'Press "q" to quit.');
 
+      _stdin
+        ..lineMode = false
+        ..echoMode = false;
+
       _timer = Timer.periodic(
           Duration(
             milliseconds: interval != null
@@ -102,12 +75,24 @@ class WatchCommand extends Command<int> {
             await _memoryRepository.fetchMemoryData(mainIsolateId);
         _logger.info(memoryData);
       });
+
+      await for (final codePoints in _stdin) {
+        for (final codePoint in codePoints) {
+          if (codePoint == 113) {
+            // 113 is the ASCII code for 'q'
+            _logger.info('Exiting...');
+            _timer?.cancel();
+            _stdin
+              ..lineMode = true
+              ..echoMode = true;
+            return ExitCode.success.code;
+          }
+        }
+      }
     } on Exception catch (e) {
       _logger.err('Watch failed: $e');
-    } finally {
-      _stopListeningForStdin();
+      return ExitCode.software.code;
     }
-
     return ExitCode.success.code;
   }
 }
