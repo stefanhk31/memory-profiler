@@ -12,8 +12,7 @@ typedef VmServiceProvider = Future<VmService> Function(String);
 class MemoryRepository {
   /// {@macro memory_repository}
   MemoryRepository({VmServiceProvider? vmServiceProvider})
-      : _vmServiceProvider =
-            vmServiceProvider ?? ((uri) async => vmServiceConnectUri(uri));
+      : _vmServiceProvider = vmServiceProvider ?? vmServiceConnectUri;
 
   final VmServiceProvider _vmServiceProvider;
 

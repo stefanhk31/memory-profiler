@@ -1,0 +1,33 @@
+name: memory_profiler
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/memory_repository.yaml"
+      - "packages/memory_repository/**"
+
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/memory_profiler.yaml"
+      - "packages/memory_repository/**"
+
+jobs:
+  build:
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/dart_package.yml@v1
+    with:
+      check_ignore: true
+
+  spell-check:
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/spell_check.yml@v1
+    with:
+      includes: |
+        **/*.md
+        !brick/**/*.md
+        .*/**/*.md
+      modified_files_only: false
