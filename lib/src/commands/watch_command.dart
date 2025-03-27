@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/extensions/byte_converter.dart';
+import 'package:memory_profiler/src/extensions/parse_int_or_default.dart';
 import 'package:memory_repository/memory_repository.dart';
 
 /// Default interval at which a fetch of memory usage is made.
@@ -73,25 +74,21 @@ class WatchCommand extends Command<int> {
 
       _timer = Timer.periodic(
           Duration(
-            milliseconds: interval != null
-                ? int.tryParse(interval) ?? defaultFetchInterval
-                : defaultFetchInterval,
+            milliseconds: interval.parseIntOrDefault(defaultFetchInterval),
           ), (_) async {
         _logger.info('Fetching current memory usage...');
         final allocationProfile =
             await _memoryRepository.fetchAllocationProfile(mainIsolateId);
         final memoryUsage = allocationProfile.memoryUsage;
         _logger.info('Memory Usage: '
-            '\nHeap Usage: ${memoryUsage?.heapUsage?.toMB} MB '
-            '\nHeap Capacity: ${memoryUsage?.heapCapacity?.toMB} MB'
-            '\nExternal Usage: ${memoryUsage?.externalUsage?.toMB} MB');
+            '\nHeap Usage: ${memoryUsage?.heapUsage?.bytesToMb} MB '
+            '\nHeap Capacity: ${memoryUsage?.heapCapacity?.bytesToMb} MB'
+            '\nExternal Usage: ${memoryUsage?.externalUsage?.bytesToMb} MB');
 
-        final thresholdVal = threshold != null
-            ? int.tryParse(threshold) ?? defaultThreshold
-            : defaultThreshold;
+        final thresholdVal = threshold.parseIntOrDefault(defaultThreshold);
 
         if (memoryUsage?.heapUsage != null &&
-            memoryUsage!.heapUsage!.toMB >= thresholdVal) {
+            memoryUsage!.heapUsage!.bytesToMb >= thresholdVal) {
           _logger.info('Memory usage exceeded threshold of $thresholdVal. '
               'Taking snapshot... ');
           final snapshot = await _memoryRepository.getDetailedMemorySnapshot(
