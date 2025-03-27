@@ -52,10 +52,6 @@ class WatchCommand extends Command<int> {
     try {
       final appUri = argResults?['uri'] as String;
       final interval = argResults?['interval'] as String?;
-      // TODO(stefanhk31): Remove linter ignore when detailed snapshot
-      // is implemented
-      // https://github.com/stefanhk31/memory-profiler/issues/8
-      // ignore: unused_local_variable
       final library = argResults?['library'] as String;
       final threshold = argResults?['threshold'] as String?;
       final uri = Uri.parse(appUri);
