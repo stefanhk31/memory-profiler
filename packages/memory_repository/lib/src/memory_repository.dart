@@ -51,16 +51,15 @@ class MemoryRepository {
     return mainIsolate.id!;
   }
 
-  /// Fetches current memory usage given a particular [isolateId].
-  Future<MemoryUsage> fetchMemoryData(String isolateId) async {
+  /// Fetches current memory allocation profile given a particular [isolateId].
+  Future<AllocationProfile> fetchAllocationProfile(String isolateId) async {
     if (_vmService == null) {
       throw VmServiceNotInitializedException();
     }
 
     final vmService = _vmService!;
 
-    final allocationProfile = await vmService.getAllocationProfile(isolateId);
-    return allocationProfile.memoryUsage ?? MemoryUsage();
+    return vmService.getAllocationProfile(isolateId);
   }
 
   /// Fetches a detailed snapshot of memory usage given an [allocationProfile],
