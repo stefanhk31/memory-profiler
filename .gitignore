@@ -13,3 +13,50 @@ coverage/
 
 # Android studio and IntelliJ
 .idea
+
+# EXAMPLE APP
+# Miscellaneous
+example/*.class
+example/*.log
+example/*.pyc
+example/*.swp
+example/.DS_Store
+example/.atom/
+example/.build/
+example/.buildlog/
+example/.history
+example/.svn/
+example/.swiftpm/
+example/migrate_working_dir/
+
+# IntelliJ related
+example/*.iml
+example/*.ipr
+example/*.iws
+example/.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#example/.vscode/
+
+# Flutter/Dart/Pub related
+example/**/doc/api/
+example/**/ios/Flutter/.last_build_id
+example/.dart_tool/
+example/.flutter-plugins
+example/.flutter-plugins-dependencies
+example/.pub-cache/
+example/.pub/
+example//build/
+
+# Symbolication related
+example/app.*.symbols
+
+# Obfuscation related
+example/app.*.map.json
+
+# Android Studio will place build artifacts here
+example/android/app/debug
+example/android/app/profile
+example/android/app/release
