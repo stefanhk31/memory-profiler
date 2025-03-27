@@ -30,6 +30,7 @@ jobs:
     with:
       check_ignore: true
       coverage_excludes: example/**
+      no_example: true
 
   spell-check:
     uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/spell_check.yml@v1
