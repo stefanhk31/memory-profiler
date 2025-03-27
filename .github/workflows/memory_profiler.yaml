@@ -54,7 +54,7 @@ jobs:
 
       - name: 📦 Install Dependencies
         run: |
-          dart pub get --exclude example
+          dart pub get --directory=.
 
       - name: 🔎 Verify version
         run: dart run test --run-skipped -t version-verify
