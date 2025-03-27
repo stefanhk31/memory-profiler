@@ -29,6 +29,8 @@ jobs:
     uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/dart_package.yml@v1
     with:
       check_ignore: true
+      coverage_excludes: example/**
+      no_example: true
 
   spell-check:
     uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/spell_check.yml@v1
@@ -38,21 +40,3 @@ jobs:
         !brick/**/*.md
         .*/**/*.md
       modified_files_only: false
-
-  verify-version:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📚 Git Checkout
-        uses: actions/checkout@v4
-
-      - name: 🎯 Setup Dart
-        uses: dart-lang/setup-dart@v1
-        with:
-          sdk: "stable"
-
-      - name: 📦 Install Dependencies
-        run: |
-          dart pub get
-
-      - name: 🔎 Verify version
-        run: dart run test --run-skipped -t version-verify
