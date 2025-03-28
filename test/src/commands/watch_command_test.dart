@@ -5,7 +5,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:memory_profiler/src/command_runner.dart';
 import 'package:memory_profiler/src/commands/commands.dart';
-import 'package:memory_profiler/src/extensions/extensions.dart';
+import 'package:memory_repository/src/extensions/extensions.dart';
 import 'package:memory_repository/memory_repository.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';

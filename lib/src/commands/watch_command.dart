@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
-import 'package:memory_profiler/src/extensions/byte_converter.dart';
-import 'package:memory_profiler/src/extensions/parse_int_or_default.dart';
+import 'package:memory_repository/src/extensions/byte_converter.dart';
+import 'package:memory_repository/src/extensions/parse_int_or_default.dart';
 import 'package:memory_repository/memory_repository.dart';
 
 /// Default interval at which a fetch of memory usage is made.
