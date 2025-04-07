@@ -1,6 +1,9 @@
+import 'dart:async';
+import 'dart:isolate';
+
 import 'package:memory_repository/src/exceptions/vm_service_not_initialized_exception.dart';
 import 'package:memory_repository/src/extensions/extensions.dart';
-import 'package:vm_service/vm_service.dart';
+import 'package:vm_service/vm_service.dart' hide Isolate;
 import 'package:vm_service/vm_service_io.dart';
 
 /// Type to simplify injecting VM service.
@@ -99,7 +102,7 @@ class MemoryRepository {
       var retainedSize = 0;
 
       for (final obj in objects) {
-        retainedSize += _getObjSizeInBatches(obj);
+        retainedSize += await _getObjSizeInBatches(obj);
       }
 
       sb.write('\n Class: ${heapSnapshotClass.name} '
@@ -109,31 +112,137 @@ class MemoryRepository {
     return sb.toString();
   }
 
-  int _getObjSizeInBatches(HeapSnapshotObject obj, {int batchSize = 10000}) {
+  Future<void> _processBatch(SendPort sendPort) async {
+    final receivePort = ReceivePort();
+    sendPort.send(receivePort.sendPort);
+
+    await for (final message in receivePort) {
+      if (message is BatchProcessMessage) {
+        print('current batch has ${message.objects.length} objects');
+        var batchTotal = 0;
+        final newVisitedIds = <int>{};
+        final newObjects = <HeapSnapshotObject>[];
+
+        for (final obj in message.objects) {
+          if (!message.visitedIds.contains(obj.hashCode) &&
+              !newVisitedIds.contains(obj.hashCode)) {
+            batchTotal += obj.shallowSize;
+            print('batch Total is now $batchTotal}');
+            newVisitedIds.add(obj.hashCode);
+            newObjects.addAll(obj.successors);
+          }
+        }
+
+        sendPort.send(
+          BatchResult(
+            batchSize: batchTotal,
+            newVisitedIds: newVisitedIds,
+            newObjects: newObjects,
+          ),
+        );
+      } else if (message == 'close') {
+        print('closing receive port');
+        receivePort.close();
+        break;
+      }
+    }
+  }
+
+  Future<int> _getObjSizeInBatches(
+    HeapSnapshotObject obj, {
+    int batchSize = 10000,
+    int numIsolates = 4,
+  }) async {
     var size = 0;
-    final visited = <HeapSnapshotObject, bool>{};
-    final queue = [obj];
+    final visitedIds = <int>{};
+    var queue = [obj];
+
+    final isolates = <Isolate>[];
+    final receivePortList = <ReceivePort>[];
+    final sendPortList = <SendPort>[];
+
+    for (var i = 0; i < numIsolates; i++) {
+      final receivePort = ReceivePort();
+      receivePortList.add(receivePort);
+
+      print('spawning new isolate $i with receive port');
+      final isolate = await Isolate.spawn(_processBatch, receivePort.sendPort);
+      isolates.add(isolate);
+
+      final sendPort = receivePortList[i].sendPort;
+      sendPortList.add(sendPort);
+    }
 
     while (queue.isNotEmpty) {
-      var processedInBatch = 0;
-      var batchTotal = 0;
+      final batches = <List<HeapSnapshotObject>>[];
 
-      while (queue.isNotEmpty && processedInBatch < batchSize) {
-        final currentObj = queue.removeAt(0);
-        if (visited[currentObj] != null && visited[currentObj]!) continue;
-        visited[currentObj] = true;
-
-        batchTotal += currentObj.shallowSize;
-
-        queue.addAll(currentObj.successors);
-
-        processedInBatch++;
+      for (var i = 0; i < numIsolates && queue.isNotEmpty; i++) {
+        final batchObjects = queue.take(batchSize).toList();
+        queue = queue.skip(batchSize).toList();
+        batches.add(batchObjects);
       }
 
-      size += batchTotal;
+      final batchFutures = <Future<BatchResult>>[];
+      for (var i = 0; i < batches.length; i++) {
+        final completer = Completer<BatchResult>();
+        batchFutures.add(completer.future);
+
+        receivePortList[i].listen((message) {
+          if (message is BatchResult && !completer.isCompleted) {
+            print('completing batch with size ${message.batchSize}');
+            completer.complete(message);
+          }
+        });
+
+        print('sending new batch to isolate $i with ${batches[i].length}');
+        sendPortList[i].send(
+          BatchProcessMessage(
+            objects: batches[i],
+            visitedIds: Set<int>.from(visitedIds),
+          ),
+        );
+      }
+
+      final results = await Future.wait(batchFutures);
+
+      for (final result in results) {
+        size += result.batchSize;
+        visitedIds.addAll(result.newVisitedIds);
+        queue.addAll(
+          result.newObjects.where((obj) => !visitedIds.contains(obj.hashCode)),
+        );
+      }
+
       print('total size is now ${size.bytesToMb} MB');
+    }
+    for (var i = 0; i < numIsolates; i++) {
+      sendPortList[i].send('close');
+      receivePortList[i].close();
+      isolates[i].kill();
     }
 
     return size;
   }
+}
+
+class BatchProcessMessage {
+  const BatchProcessMessage({
+    required this.objects,
+    required this.visitedIds,
+  });
+
+  final List<HeapSnapshotObject> objects;
+  final Set<int> visitedIds;
+}
+
+class BatchResult {
+  const BatchResult({
+    required this.batchSize,
+    required this.newVisitedIds,
+    required this.newObjects,
+  });
+
+  final int batchSize;
+  final Set<int> newVisitedIds;
+  final List<HeapSnapshotObject> newObjects;
 }
