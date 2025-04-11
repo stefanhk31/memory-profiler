@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:memory_repository/src/exceptions/vm_service_not_initialized_exception.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
@@ -68,26 +69,75 @@ class MemoryRepository {
     AllocationProfile allocationProfile,
     String libraryPath,
   ) async {
-    final sb = StringBuffer()..write('Detailed Memory Snapshot: ');
-
-    final members = allocationProfile.members ?? <ClassHeapStats>[];
-
-    final libMembers = members
-        .where(
-          (m) =>
-              (m.classRef?.library?.uri?.contains(libraryPath) ?? false) &&
-              (m.bytesCurrent != null && m.bytesCurrent! > 0),
-        )
-        .toList()
-      ..sort(
-        (a, b) => (a.bytesCurrent ?? 0).compareTo(b.bytesCurrent ?? 0),
-      );
-
-    for (final member in libMembers) {
-      sb.write('\n Class: ${member.classRef?.name} '
-          '\nCurrent Bytes: ${member.bytesCurrent}');
+    if (_vmService == null) {
+      throw VmServiceNotInitializedException();
     }
 
+    final vmService = _vmService!;
+    final vm = await vmService.getVM();
+    final isolates = vm.isolates ?? <IsolateRef>[];
+    final mainIsolate = isolates.firstWhere(
+      (i) => i.name == 'main',
+      orElse: () {
+        throw Exception('Main isolate not found');
+      },
+    );
+
+    final snapshot =
+        await HeapSnapshotGraph.getSnapshot(vmService, mainIsolate);
+
+    final result = NativeRuntime.writeHeapSnapshotToFile(
+      '${DateTime.now()}_snapshot.json',
+    );
+
+    final sb = StringBuffer()..write('Detailed Memory Snapshot: ');
+
+    // final classes =
+    //     snapshot.classes.where((c) => c.libraryUri.path.contains(libraryPath));
+
+    // for (final heapSnapshotClass in classes) {
+    //   print('Gathering retained size of ${heapSnapshotClass.name}...');
+    //   final objects =
+    //       snapshot.objects.where((o) => o.classId == heapSnapshotClass.classId);
+
+    //   var retainedSize = 0;
+
+    //   for (final obj in objects) {
+    //     retainedSize += _getObjSizeInBatches(obj);
+    //   }
+
+    //   sb.write('\n Class: ${heapSnapshotClass.name} '
+    //       '\nRetained Size: ${retainedSize.bytesToMb} MB');
+    // }
+
     return sb.toString();
+  }
+
+  int _getObjSizeInBatches(HeapSnapshotObject obj, {int batchSize = 100}) {
+    var size = 0;
+    final visited = <HeapSnapshotObject, bool>{};
+    final queue = [obj];
+
+    while (queue.isNotEmpty) {
+      var processedInBatch = 0;
+      var batchTotal = 0;
+
+      while (queue.isNotEmpty && processedInBatch < batchSize) {
+        final currentObj = queue.removeAt(0);
+        if (visited[currentObj] != null && visited[currentObj]!) continue;
+        visited[currentObj] = true;
+
+        batchTotal += currentObj.shallowSize;
+
+        queue.addAll(currentObj.successors);
+
+        processedInBatch++;
+      }
+
+      size += batchTotal;
+      print('total size is now ${size.bytesToMb} MB');
+    }
+
+    return size;
   }
 }
