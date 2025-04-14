@@ -3,8 +3,6 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
-import 'package:memory_repository/src/extensions/byte_converter.dart';
-import 'package:memory_repository/src/extensions/parse_int_or_default.dart';
 import 'package:memory_repository/memory_repository.dart';
 
 /// Default interval at which a fetch of memory usage is made.
@@ -20,6 +18,14 @@ const defaultThreshold = 100;
 /// A [Command] to watch a currently running Flutter app.
 /// {@endtemplate}
 class WatchCommand extends Command<int> {
+  final Logger _logger;
+
+  final MemoryRepository _memoryRepository;
+
+  final Stdin _stdin;
+
+  Timer? _timer;
+
   /// {@macro watch_command}
   WatchCommand({
     required Logger logger,
@@ -34,18 +40,11 @@ class WatchCommand extends Command<int> {
       ..addOption('interval')
       ..addOption('threshold');
   }
-
   @override
   String get description => 'A command to watch a currently running '
       'Flutter app to capture memory usage';
-
   @override
   String get name => 'watch';
-
-  final Logger _logger;
-  final MemoryRepository _memoryRepository;
-  final Stdin _stdin;
-  Timer? _timer;
 
   @override
   Future<int> run() async {
