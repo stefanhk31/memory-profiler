@@ -18,14 +18,6 @@ const defaultThreshold = 100;
 /// A [Command] to watch a currently running Flutter app.
 /// {@endtemplate}
 class WatchCommand extends Command<int> {
-  final Logger _logger;
-
-  final MemoryRepository _memoryRepository;
-
-  final Stdin _stdin;
-
-  Timer? _timer;
-
   /// {@macro watch_command}
   WatchCommand({
     required Logger logger,
@@ -40,6 +32,15 @@ class WatchCommand extends Command<int> {
       ..addOption('interval')
       ..addOption('threshold');
   }
+
+  final Logger _logger;
+
+  final MemoryRepository _memoryRepository;
+
+  final Stdin _stdin;
+
+  Timer? _timer;
+
   @override
   String get description => 'A command to watch a currently running '
       'Flutter app to capture memory usage';
@@ -72,22 +73,20 @@ class WatchCommand extends Command<int> {
             milliseconds: interval.parseIntOrDefault(defaultFetchInterval),
           ), (_) async {
         _logger.info('Fetching current memory usage...');
-        final allocationProfile =
-            await _memoryRepository.fetchAllocationProfile(mainIsolateId);
-        final memoryUsage = allocationProfile.memoryUsage;
+        final memoryUsage =
+            await _memoryRepository.fetchMemoryUsage(mainIsolateId);
         _logger.info('Memory Usage: '
-            '\nHeap Usage: ${memoryUsage?.heapUsage?.bytesToMb} MB '
-            '\nHeap Capacity: ${memoryUsage?.heapCapacity?.bytesToMb} MB'
-            '\nExternal Usage: ${memoryUsage?.externalUsage?.bytesToMb} MB');
+            '\nHeap Usage: ${memoryUsage.heapUsage?.bytesToMb} MB '
+            '\nHeap Capacity: ${memoryUsage.heapCapacity?.bytesToMb} MB'
+            '\nExternal Usage: ${memoryUsage.externalUsage?.bytesToMb} MB');
 
         final thresholdVal = threshold.parseIntOrDefault(defaultThreshold);
 
-        if (memoryUsage?.heapUsage != null &&
-            memoryUsage!.heapUsage!.bytesToMb >= thresholdVal) {
+        if (memoryUsage.heapUsage != null &&
+            memoryUsage.heapUsage!.bytesToMb >= thresholdVal) {
           _logger.info('Memory usage exceeded threshold of $thresholdVal. '
               'Taking snapshot... ');
           final snapshot = await _memoryRepository.getDetailedMemorySnapshot(
-            allocationProfile,
             library,
           );
           _logger.info(snapshot);

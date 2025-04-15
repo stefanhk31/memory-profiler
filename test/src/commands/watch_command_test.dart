@@ -60,10 +60,8 @@ void main() {
       when(() => memoryRepository.initialize(any())).thenAnswer((_) async {});
       when(() => memoryRepository.getMainIsolateId())
           .thenAnswer((_) async => isolateId);
-      when(() => memoryRepository.fetchAllocationProfile(isolateId)).thenAnswer(
-        (_) async => _TestData.allocationProfile(
-          _TestData.defaultMemoryUsage,
-        ),
+      when(() => memoryRepository.fetchMemoryUsage(isolateId)).thenAnswer(
+        (_) async => _TestData.defaultMemoryUsage,
       );
 
       commandRunner = MemoryProfilerCommandRunner(
@@ -199,19 +197,16 @@ void main() {
         when(
           () => memoryRepository.getDetailedMemorySnapshot(
             any(),
-            any(),
           ),
         ).thenAnswer((_) async => snapshot);
       });
 
       test('at default threshold when no threshold is provided', () async {
         fakeAsync((async) {
-          when(() => memoryRepository.fetchAllocationProfile(any())).thenAnswer(
-            (_) async => _TestData.allocationProfile(
-              MemoryUsage(
-                heapUsage: 101.mbToBytes,
-                heapCapacity: 102.mbToBytes,
-              ),
+          when(() => memoryRepository.fetchMemoryUsage(any())).thenAnswer(
+            (_) async => MemoryUsage(
+              heapUsage: 101.mbToBytes,
+              heapCapacity: 102.mbToBytes,
             ),
           );
 
@@ -234,12 +229,10 @@ void main() {
 
       test('at default threshold when invalid threshold is provided', () async {
         fakeAsync((async) {
-          when(() => memoryRepository.fetchAllocationProfile(any())).thenAnswer(
-            (_) async => _TestData.allocationProfile(
-              MemoryUsage(
-                heapUsage: 101.mbToBytes,
-                heapCapacity: 102.mbToBytes,
-              ),
+          when(() => memoryRepository.fetchMemoryUsage(any())).thenAnswer(
+            (_) async => MemoryUsage(
+              heapUsage: 101.mbToBytes,
+              heapCapacity: 102.mbToBytes,
             ),
           );
 
@@ -263,12 +256,10 @@ void main() {
 
       test('at custom threshold when provided', () async {
         fakeAsync((async) {
-          when(() => memoryRepository.fetchAllocationProfile(any())).thenAnswer(
-            (_) async => _TestData.allocationProfile(
-              MemoryUsage(
-                heapUsage: 501.mbToBytes,
-                heapCapacity: 502.mbToBytes,
-              ),
+          when(() => memoryRepository.fetchMemoryUsage(any())).thenAnswer(
+            (_) async => MemoryUsage(
+              heapUsage: 501.mbToBytes,
+              heapCapacity: 502.mbToBytes,
             ),
           );
 
@@ -322,9 +313,4 @@ abstract class _TestData {
     heapUsage: 2000000,
     heapCapacity: 5000000,
   );
-
-  static AllocationProfile allocationProfile(MemoryUsage memoryUsage) =>
-      AllocationProfile(
-        memoryUsage: memoryUsage,
-      );
 }

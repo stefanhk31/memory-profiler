@@ -95,7 +95,7 @@ void main() {
         'when vm Service has not been initialized',
         () async {
           expect(
-            () async => memoryRepository.fetchAllocationProfile(isolateId),
+            () async => memoryRepository.fetchMemoryUsage(isolateId),
             throwsA(
               isA<VmServiceNotInitializedException>(),
             ),
@@ -109,7 +109,7 @@ void main() {
         );
 
         await memoryRepository.initialize('uri');
-        final result = await memoryRepository.fetchAllocationProfile(isolateId);
+        final result = await memoryRepository.fetchMemoryUsage(isolateId);
         expect(
           result,
           equals(_TestData.allocationProfile),
@@ -121,7 +121,6 @@ void main() {
       test('returns sorted memory data for classes in given library path',
           () async {
         final result = await memoryRepository.getDetailedMemorySnapshot(
-          _TestData.allocationProfile,
           'path',
         );
         expect(
