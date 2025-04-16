@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:developer';
 import 'package:memory_repository/src/exceptions/vm_service_not_initialized_exception.dart';
 import 'package:memory_repository/src/extensions/extensions.dart';
+import 'package:memory_repository/src/extensions/get_retainers.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
@@ -94,29 +95,46 @@ class MemoryRepository {
 
     final sb = StringBuffer()..write('Detailed Memory Snapshot: ');
 
-    final classes =
-        snapshot.classes.where((c) => c.libraryUri.path.contains(libraryPath));
+    final retainedResult = snapshot.retainers;
 
-    for (final heapSnapshotClass in classes) {
-      final objects =
-          snapshot.objects.where((o) => o.classId == heapSnapshotClass.classId);
+    var reachableSize = snapshot.objects[1].shallowSize;
 
-      var retainedSize = 0;
-      var objectsTraversed = 0;
+    for (var i = 0; i < snapshot.objects.length; i++) {
+      final obj = snapshot.objects[i];
 
-      for (final obj in objects) {
-        retainedSize += _getObjSizeInBatches(obj);
-        objectsTraversed++;
-        print(
-            '${heapSnapshotClass.name}: $objectsTraversed objects out of ${objects.length} traversed');
-      }
+      if (retainedResult.retainers[i] == 0) continue;
 
-      // print('\n Class: ${heapSnapshotClass.name} '
-      //     '\nRetained Size: ${retainedSize.bytesToMb} MB');
+      final className = snapshot.classes[obj.classId].name;
 
-      sb.write('\n Class: ${heapSnapshotClass.name} '
-          '\nRetained Size: ${retainedSize.bytesToMb} MB');
+      // Ignore sentinels, because their size is not known.
+      if (className == 'Sentinel') continue;
+
+      reachableSize += obj.shallowSize;
+
+      sb.write('\n Class: $className '
+          '\nRetained Size: ${reachableSize.bytesToMb} MB');
     }
+
+    // final classes =
+    //     snapshot.classes.where((c) => c.libraryUri.path.contains(libraryPath));
+
+    // for (final heapSnapshotClass in classes) {
+    //   final objects =
+    //       snapshot.objects.where((o) => o.classId == heapSnapshotClass.classId);
+
+    //   var retainedSize = 0;
+    //   var objectsTraversed = 0;
+
+    //   for (final obj in objects) {
+    //     retainedSize += _getObjSizeInBatches(obj);
+    //     objectsTraversed++;
+    //     print(
+    //         '${heapSnapshotClass.name}: $objectsTraversed objects out of ${objects.length} traversed');
+    //   }
+
+    //   sb.write('\n Class: ${heapSnapshotClass.name} '
+    //       '\nRetained Size: ${retainedSize.bytesToMb} MB');
+    // }
 
     return sb.toString();
   }
@@ -152,5 +170,38 @@ class MemoryRepository {
     }
 
     return size;
+  }
+}
+
+class _WeakClasses {
+  _WeakClasses({required this.graph}) {
+    final weakClassesToFind = <String, String>{
+      '_WeakProperty': 'dart:core',
+      '_WeakReferenceImpl': 'dart:core',
+      'FinalizerEntry': 'dart:_internal',
+    };
+
+    for (final graphClass in graph.classes) {
+      if (weakClassesToFind.containsKey(graphClass.name) &&
+          weakClassesToFind[graphClass.name] == graphClass.libraryName) {
+        _weakClasses.add(graphClass.classId);
+        weakClassesToFind.remove(graphClass.name);
+        if (weakClassesToFind.isEmpty) return;
+      }
+    }
+  }
+
+  final HeapSnapshotGraph graph;
+
+  /// Set of class ids that are not holding their
+  /// references from garbage collection.
+  late final _weakClasses = <int>{};
+
+  /// Returns true if the object cannot retain other objects.
+  bool isWeak(int objectIndex) {
+    final object = graph.objects[objectIndex];
+    if (object.references.isEmpty) return true;
+    final classId = object.classId;
+    return _weakClasses.contains(classId);
   }
 }
