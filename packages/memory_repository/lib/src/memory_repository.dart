@@ -102,10 +102,17 @@ class MemoryRepository {
           snapshot.objects.where((o) => o.classId == heapSnapshotClass.classId);
 
       var retainedSize = 0;
+      var objectsTraversed = 0;
 
       for (final obj in objects) {
         retainedSize += _getObjSizeInBatches(obj);
+        objectsTraversed++;
+        print(
+            '${heapSnapshotClass.name}: $objectsTraversed objects out of ${objects.length} traversed');
       }
+
+      // print('\n Class: ${heapSnapshotClass.name} '
+      //     '\nRetained Size: ${retainedSize.bytesToMb} MB');
 
       sb.write('\n Class: ${heapSnapshotClass.name} '
           '\nRetained Size: ${retainedSize.bytesToMb} MB');
@@ -116,7 +123,7 @@ class MemoryRepository {
 
   int _getObjSizeInBatches(HeapSnapshotObject obj, {int batchSize = 100}) {
     var size = 0;
-    final visited = <HeapSnapshotObject>{};
+    final visited = <int>{};
     final queue = Queue<HeapSnapshotObject>()..add(obj);
 
     while (queue.isNotEmpty) {
@@ -125,8 +132,14 @@ class MemoryRepository {
 
       while (queue.isNotEmpty && processedInBatch < batchSize) {
         final currentObj = queue.removeFirst();
-        if (visited.contains(currentObj)) continue;
-        visited.add(currentObj);
+        if (currentObj.klass.name == 'StreamingMediaPlayerBloc') {
+          print('CURRENT OBJECT ${currentObj.klass.name}: '
+              '\n size: ${currentObj.shallowSize} '
+              '\n successors: ${currentObj.successors.map((s) => s.klass.name)}, ');
+        }
+
+        if (visited.contains(currentObj.identityHashCode)) continue;
+        visited.add(currentObj.identityHashCode);
 
         batchTotal += currentObj.shallowSize;
 
